@@ -43,6 +43,9 @@ static bool zeroPending = true;
 // (ถ้าค่าไม่เพิ่มขึ้นเลย แปลว่าไม่ได้รับข้อมูลจาก IMU)
 unsigned long imuReportCount = 0;
 
+// true = เจอ IMU ตอน RobotSetup() (ถ้าไม่เจอภายใน 10 วินาที จะเป็น false และข้ามการอ่านเซนเซอร์)
+bool imuFound = false;
+
 bool setReports() {
   // SparkFun library ไม่คืนค่าสถานะจาก enableXxx() จึงคืน true เสมอ
   bno08x.enableGameRotationVector(BNO08X_REPORT_INTERVAL_MS);
@@ -51,6 +54,7 @@ bool setReports() {
 
 // เรียกบ่อย ๆ (เช่นทุก loop) เพื่อดึง report ล่าสุดจากเซนเซอร์
 void pollBNO08x() {
+  if (!imuFound) return;
   if (bno08x.hasReset()) {
     setReports();
   }

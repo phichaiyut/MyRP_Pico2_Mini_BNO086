@@ -60,18 +60,19 @@ void RobotSetup() {
 
   loadCalibration();
   loadCalibration_LOCAL();
-  if (!bno08x.begin(imuAddress, Wire)) {
-    Serial.println("หา BNO08x ไม่เจอ ตรวจสาย SDA/SCL/3V3/GND");
-    while (1) delay(10);
+  // ลองหา BNO08x ซ้ำได้ไม่เกิน 10 วินาที ถ้าไม่เจอให้ทำงานต่อโดยไม่มี gyro
+  unsigned long imuStart = millis();
+  while (!(imuFound = bno08x.begin(imuAddress, Wire)) && millis() - imuStart < 10000) {
+    delay(200);
   }
-  Serial.println("เจอ BNO08x แล้ว");
-
-  if (!setReports()) {
-    while (1) delay(10);
+  if (imuFound && setReports()) {
+    Serial.println("เจอ BNO08x แล้ว");
+    delay(100);
+    zeroZ();  // ตั้งทิศตั้งต้นเป็น 0 องศา
+  } else {
+    imuFound = false;
+    Serial.println("หา BNO08x ไม่เจอภายใน 10 วินาที ตรวจสาย SDA/SCL/3V3/GND (ทำงานต่อโดยไม่มี gyro)");
   }
-
-  delay(100);
-  zeroZ();  // ตั้งทิศตั้งต้นเป็น 0 องศา
 
   // ตั้งความเร็ว I2C หลังสุด เพราะ bat.begin()/bno08xBegin() เรียก Wire.begin() ซ้ำข้างใน
   // ซึ่งจะรีเซ็ตความเร็วบัสกลับเป็นค่าเริ่มต้น ถ้าตั้งไว้ก่อนหน้านี้จะโดนทับ
