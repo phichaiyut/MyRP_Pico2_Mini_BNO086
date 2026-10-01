@@ -40,7 +40,7 @@ void Setting() {
 
   /******************** GYRO SPEED MODE ********************/
   // เลือกเปิดใช้ทีละบรรทัด (mode, max, min)
-  // ModeSpdGyro(0, 100, -10);  // 0 = 0..max        ล้อติดลบ → min
+  // ModeSpdGyro(0, 100, -0);  // 0 = 0..max        ล้อติดลบ → min
   // ModeSpdGyro(1, 100, -100);  // 1 = min..max
   // ModeSpdGyro(2, 100, -10);  // 2 = -Speed..Speed ถอยล้อได้เต็มที่
   // ModeSpdGyro(3, 100, -10);  // 3 = ..max          ล้อติดลบ → -Speed
@@ -49,16 +49,16 @@ void Setting() {
 
   /******************** GYRO PID CONFIG ********************/
   // (kp, kd, maxSpd, minSpd, smallAngle, stopThr)
-  SetGyroTurn(1.2, 0.25, 50, 15, 15.0, 2.0);  // เลี้ยวล้อเดียวด้วยไจโร (turndegree / turndegreeb)
-  SetGyroSpin(1.2, 0.25, 50, 15, 15.0, 2.0);  // หมุนตัวอยู่กับที่ด้วยไจโร (spindegree)
+  SetGyroTurn(1.2, 0.25, 50, 15, 25.0, 1.0);  // เลี้ยวล้อเดียวด้วยไจโร (turndegree / turndegreeb)
+  SetGyroSpin(1.2, 0.25, 50, 8, 25.0, 1.0);  // หมุนตัวอยู่กับที่ด้วยไจโร (spindegree)
   // (kp, kd)
-  SetGyroRun(0.6, 4.0);   // เดินหน้าตรงด้วยไจโร (RunG)
-  SetGyroRunB(0.6, 4.0);  // ถอยหลังตรงด้วยไจโร (RunGB)
+  SetGyroRun(1.2, 1.5);   // เดินหน้าตรงด้วยไจโร (RunG)
+  SetGyroRunB(1.2, 1.5);  // ถอยหลังตรงด้วยไจโร (RunGB)
 
   /******************** LINE POSITION ********************/
-  set_position_line(3500);    // 0–5000 | 1000=ซ้าย 2500=กลาง 4000=ขวา
-  set_position_line_l(1500);   // 0–5000 | วิ่งโค้งซ้าย
-  set_position_line_r(5500);  // 0–5000 | วิ่งโค้งขวา
+  set_position_line(2500);    // 0–5000 | 1000=ซ้าย 2500=กลาง 4000=ขวา
+  set_position_line_l(500);   // 0–5000 | วิ่งโค้งซ้าย
+  set_position_line_r(4500);  // 0–5000 | วิ่งโค้งขวา
 
   /******************** DISTANCE SENSOR ********************/
   SetAnalogDistance(28);  // A0–A3 เซนเซอร์ตรวจจับวัตถุ
