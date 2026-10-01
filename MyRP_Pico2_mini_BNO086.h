@@ -194,8 +194,6 @@ void sw() {
     Serial.print(" ");
     Serial.print("   Gyro: ");
     Serial.print(gyroZ());  // มุม Yaw ช่วง -180..180
-  
-    Serial.print(")");
 
     Serial.println();
     delay(100);  // อ่าน/แสดงผลทุก 100ms กันสแปม Serial/สแกน ADC รัวๆ

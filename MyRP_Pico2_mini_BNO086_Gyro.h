@@ -2,7 +2,6 @@
 #define MYRP_PICO2_MINI_GYRO_H
 
 #include <Wire.h>
-#include <Adafruit_Sensor.h>
 #include <SparkFun_BNO08x_Arduino_Library.h>
 BNO08x myIMU;
 float yawOffset = 0;
@@ -464,7 +463,7 @@ void turndegree(int relative_degree) {
 }
 
 void turndegreeb(int relative_degree) {
-  turndegreeb(gyro_MaxSpd_TurnB, relative_degree);
+  turndegreeb(gyro_MaxSpd_Turn, relative_degree);
 }
 
 void turndegree_none(int relative_degree) {
@@ -472,7 +471,7 @@ void turndegree_none(int relative_degree) {
 }
 
 void turndegreeb_none(int relative_degree) {
-  turndegreeb_none(gyro_MaxSpd_TurnB, relative_degree);
+  turndegreeb_none(gyro_MaxSpd_Turn, relative_degree);
 }
 
 /* ---------- turn to absolute direction (อ้างอิงจากตอน resetAngles) เช่น 0, 90, 180, 270, 360 ---------- */
@@ -506,7 +505,7 @@ void turndirection(int direction) {
 }
 
 void turndirectionb(int direction) {
-  turndirectionb(gyro_MaxSpd_TurnB, direction);
+  turndirectionb(gyro_MaxSpd_Turn, direction);
 }
 
 void turndirection_none(int Speed, int direction) {
@@ -522,7 +521,7 @@ void turndirection_none(int direction) {
 }
 
 void turndirectionb_none(int direction) {
-  turndirectionb_none(gyro_MaxSpd_TurnB, direction);
+  turndirectionb_none(gyro_MaxSpd_Turn, direction);
 }
 
 /* ---------- gyro-guided straight move ---------- */
