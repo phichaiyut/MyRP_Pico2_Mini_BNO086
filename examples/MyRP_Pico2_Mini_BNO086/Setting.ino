@@ -47,6 +47,14 @@ void Setting() {
   ModeSpdGyro(4, 100, 0);     // 4 = 0..Speed      ไม่ถอยล้อ
   // ModeSpdGyro(2, 4, 100, -5);   // แยกโหมด (เดินหน้า, ถอยหลัง, max, min)
 
+  /******************** GYRO PID CONFIG ********************/
+  // (kp, kd, maxSpd, minSpd, smallAngle, stopThr)
+  SetGyroTurn(1.2, 0.25, 50, 15, 15.0, 2.0);  // เลี้ยวล้อเดียวด้วยไจโร (turndegree / turndegreeb)
+  SetGyroSpin(1.2, 0.25, 50, 15, 15.0, 2.0);  // หมุนตัวอยู่กับที่ด้วยไจโร (spindegree)
+  // (kp, kd)
+  SetGyroRun(0.6, 4.0);   // เดินหน้าตรงด้วยไจโร (RunG)
+  SetGyroRunB(0.6, 4.0);  // ถอยหลังตรงด้วยไจโร (RunGB)
+
   /******************** LINE POSITION ********************/
   set_position_line(3500);    // 0–5000 | 1000=ซ้าย 2500=กลาง 4000=ขวา
   set_position_line_l(1500);   // 0–5000 | วิ่งโค้งซ้าย

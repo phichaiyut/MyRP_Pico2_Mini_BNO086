@@ -61,19 +61,19 @@ void RobotSetup() {
   loadCalibration();
   loadCalibration_LOCAL();
   // ลองหา BNO08x ซ้ำได้ไม่เกิน 10 วินาที ถ้าไม่เจอให้ทำงานต่อโดยไม่มี gyro
-  unsigned long imuStart = millis();
-  while (!(imuFound = bno08x.begin(imuAddress, Wire)) && millis() - imuStart < 10000) {
-    delay(200);
-  }
-  if (imuFound && setReports()) {
-    Serial.println("เจอ BNO08x แล้ว");
-    delay(100);
-    zeroZ();  // ตั้งทิศตั้งต้นเป็น 0 องศา
-  } else {
-    imuFound = false;
-    Serial.println("หา BNO08x ไม่เจอภายใน 10 วินาที ตรวจสาย SDA/SCL/3V3/GND (ทำงานต่อโดยไม่มี gyro)");
-  }
 
+
+  if (myIMU.begin(0x4A, Wire, -1, -1) == false) {
+    Serial.println("BNO08x not detected at default I2C address. Check your jumpers and the hookup guide. Freezing...");
+    while (1) {
+      Beep(500); delay(200); Beep(500); delay(200); Beep(500); delay(200); Beep(500);
+      break;
+    }
+  }
+  Serial.println("BNO08x found!");
+
+  myIMU.enableRotationVector(5);  //
+  resetYaw();
   // ตั้งความเร็ว I2C หลังสุด เพราะ bat.begin()/bno08xBegin() เรียก Wire.begin() ซ้ำข้างใน
   // ซึ่งจะรีเซ็ตความเร็วบัสกลับเป็นค่าเริ่มต้น ถ้าตั้งไว้ก่อนหน้านี้จะโดนทับ
   // ต้องใช้ 100 kHz: ทดสอบแล้วที่ 400 kHz BNO086 ไม่ส่งข้อมูลมุมมาเลย (IMU reports ค้างที่ 0)
@@ -194,8 +194,7 @@ void sw() {
     Serial.print(" ");
     Serial.print("   Gyro: ");
     Serial.print(gyroZ());  // มุม Yaw ช่วง -180..180
-    Serial.print("  (IMU reports: ");
-    Serial.print(imuReportCount);
+  
     Serial.print(")");
 
     Serial.println();
