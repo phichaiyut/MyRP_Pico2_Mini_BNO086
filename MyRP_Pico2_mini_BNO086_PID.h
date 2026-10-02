@@ -1036,7 +1036,7 @@ void TrackSelectF(int spd, char x) {
   switch (x) {
     case 's':
       Motor(-spd, -spd);
-      delay(spd);
+      delay(abs(spd));
       Move(-15, -15, 5);
       Move(-10, -10, 1);
       Move(-1, -1, 1);
@@ -1050,7 +1050,7 @@ void TrackSelectF(int spd, char x) {
         ReadCalibrateF();
         if (F[0] > Ref || F[7] > Ref) {
           Motor(-spd, -spd);
-          delay(spd);
+          delay(abs(spd));
           Move(-15, -15, 5);
           Move(-10, -10, 1);
           Move(-1, -1, 1);
@@ -1289,7 +1289,7 @@ void TrackSelectB(int spd, char x) {
   switch (x) {
     case 's':
       Motor(spd, spd);
-      delay(spd);
+      delay(abs(spd));
       Move(15, 15, 5);
       Move(10, 10, 1);
       Move(1, 1, 1);
@@ -1302,7 +1302,7 @@ void TrackSelectB(int spd, char x) {
         ReadCalibrateB();
         if (B[0] > Ref || B[7] > Ref) {
           Motor(spd, spd);
-          delay(spd);
+          delay(abs(spd));
           Move(15, 15, 5);
           Move(10, 10, 1);
           Move(1, 1, 1);
