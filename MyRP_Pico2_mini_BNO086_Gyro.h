@@ -105,9 +105,12 @@ void setAngleOffset() {
 }
 
 void resetAngles() {
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 5; i++) {
     resetYaw();
   }
+  current_degree = 0;
+  previous_errorG = 0;
+  previous_errorGB = 0;
 }
 
 // คืนมุม Yaw ในช่วง -180..180 องศา (ไม่ว่า getZ() จะคืนค่าช่วงไหน เช่น 0..360 หรือสะสมเกิน 360)
