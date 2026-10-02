@@ -1302,7 +1302,7 @@ void TrackSelectB(int spd, char x) {
         ReadCalibrateB();
         if (B[0] > Ref || B[7] > Ref) {
           Motor(spd, spd);
-          delay(5);
+          delay(spd);
           Move(15, 15, 5);
           Move(10, 10, 1);
           Move(1, 1, 1);
