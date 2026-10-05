@@ -35,6 +35,7 @@
 // --- ตารางความเร็ว (ch = SPD_10 ... SPD_100) ---
 // setBalanceSpeed(ch, l, r);        setBalanceBackSpeed(ch, l, r);
 // Set_KP_KD(ch, kp, kd);            Set_KP_KD_Back(ch, kp, kd);
+// SetDelayBreak(ch, f, b);          // เวลาเบรก (ms) ตอนหยุดที่เส้น f=เดินหน้า b=ถอยหลัง
 
 
 /* ===== [2] คำสั่งทางแยก 'select' (ตัวสุดท้ายของ ff / bb / *g) =====
