@@ -66,7 +66,13 @@ void RobotSetup() {
   if (myIMU.begin(0x4A, Wire, -1, -1) == false) {
     Serial.println("BNO08x not detected at default I2C address. Check your jumpers and the hookup guide. Freezing...");
     while (1) {
-      Beep(500); delay(200); Beep(500); delay(200); Beep(500); delay(200); Beep(500);
+      Beep(500);
+      delay(200);
+      Beep(500);
+      delay(200);
+      Beep(500);
+      delay(200);
+      Beep(500);
       break;
     }
   }
@@ -105,11 +111,11 @@ int ADC_i2c() {
 // ==================== sw() - เมนู Calibration + แสดงเซนเซอร์ ====================
 void sw() {
   MotorStop();
-  tone(9, 2000, 100);   // โด
+  tone(9, 2000, 100);  // โด
   delay(100);
-  tone(9, 2400, 100);   // เร
+  tone(9, 2400, 100);  // เร
   delay(100);
-  tone(9, 3000, 160);   // มี
+  tone(9, 3000, 160);  // มี
   delay(500);
   tone(9, 3000, 60);
   delay(80);
@@ -172,7 +178,8 @@ void sw() {
       delay(100);
       digitalWrite(LED_BUILTIN, LOW);
       delay(100);
-      while (digitalRead(2) == LOW);  // รอปล่อยปุ่ม
+      while (digitalRead(2) == LOW)
+        ;          // รอปล่อยปุ่ม
       delay(400);  // ป้องกันการเด้งของปุ่ม
     }
 
@@ -226,7 +233,8 @@ void sw() {
           delay(100);
           digitalWrite(LED_BUILTIN, LOW);
           delay(100);
-          while (digitalRead(2) == LOW);  // รอปล่อยปุ่ม
+          while (digitalRead(2) == LOW)
+            ;          // รอปล่อยปุ่ม
           delay(400);  // ป้องกันการเด้งของปุ่ม
         }
       }
@@ -250,4 +258,4 @@ void sw() {
   delay(500);
 }
 
-#endif // MYRP_PICO2_MINI_H
+#endif  // MYRP_PICO2_MINI_H

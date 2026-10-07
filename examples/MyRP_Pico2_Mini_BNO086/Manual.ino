@@ -24,6 +24,7 @@
 // SetTurnSpeed(speed);
 // TurnSpeedLeft(l, r, delay);       TurnSpeedRight(l, r, delay);
 // SetSensorTurnLeftRight(l, r);     // เซนเซอร์หน้าที่หยุดเลี้ยว TurnLeft (F[0..l]) / TurnRight (F[7..r])
+// SetSensorTurnLeftRight_B(l, r);   // เซนเซอร์หลังที่หยุดเลี้ยว TurnLeft_B (B[7..l]) / TurnRight_B (B[0..r])
 // TurnBackSpeedLeft(l, r, delay);   TurnBackSpeedRight(l, r, delay);
 // TurnSpeedLeftBackF(l, r, delay);  TurnSpeedRightBackF(l, r, delay);
 // TurnSpeedLeftBackB(l, r, delay);  TurnSpeedRightBackB(l, r, delay);
@@ -31,7 +32,6 @@
 // ModeSpdGyro(mode, max, min);      ModeSpdGyro(modeF, modeB, max, min);
 //   mode 0 = 0..max | 1 = min..max | 2 = -Speed..Speed | 3 = ..max | 4 = 0..Speed
 // set_position_line(3500);          set_position_line_l(pos);         set_position_line_r(pos);
-// set_slow_kp_kd(kpf, kdf, kpb, kdb);
 // SetAnalogDistance(A0);
 // --- ตารางความเร็ว (ch = SPD_10 ... SPD_100) ---
 // setBalanceSpeed(ch, l, r);        setBalanceBackSpeed(ch, l, r);
@@ -142,6 +142,7 @@
 
 
 /* ===== [8] Gyro วิ่งตรง (direction ใส่ท้ายได้ = ล็อกทิศ) ===== */
+// dir = ทิศที่หุ่นเคลื่อนที่ไป ทั้งเดินหน้าและถอยหลัง เช่น bbcmg(speed, cm, 'p', 180) = ถอยไปทิศ 180 (หน้าหันทิศ 0)
 // fftimerg(speed, ms);          fftimerg(speed, ms, 'p');     fftimerg(speed, ms, 'p', dir);
 // bbtimerg(speed, ms);          bbtimerg(speed, ms, 'p');     bbtimerg(speed, ms, 'p', dir);
 // fftg(speed, ms, 'p');         bbtg(speed, ms, 'p');         // + dir ได้
