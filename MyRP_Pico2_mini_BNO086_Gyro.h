@@ -105,10 +105,12 @@ void setAngleOffset() {
 }
 
 void resetAngles() {
+  resetYaw();
+  float sum = 0;
   for (int i = 0; i < 5; i++) {
-    resetYaw();
+    sum += angleRead();
   }
-  current_degree = angleRead();
+  current_degree = sum / 5.0f;
   previous_errorG = 0;
   previous_errorGB = 0;
 }
