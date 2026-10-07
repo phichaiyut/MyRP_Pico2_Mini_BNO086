@@ -656,6 +656,7 @@ void TurnLeftBackF() {
   delay(TurnBackFDelayL);
   while (1) {
     Motor(LTurnBackFSpdL, -LTurnBackFSpdR);
+    delayMicroseconds(80);
     ReadCalibrateF();
     if (F[sensorIdx] >= Ref) MotorStop();
     lf(spd);
@@ -672,10 +673,10 @@ void TurnRightBackF() {
   else if (spd <= 70) sensorIdx = 2;
   else sensorIdx = 6;
 
-  Motor(RTurnBackFSpdL, RTurnBackFSpdR);
-  delay(TurnBackFDelayR);
+
   while (1) {
     Motor(RTurnBackFSpdL, RTurnBackFSpdR);
+    delayMicroseconds(80);
     ReadCalibrateF();
     if (F[sensorIdx] >= Ref) MotorStop();
     lf(spd);
@@ -876,8 +877,6 @@ void TurnLeftBackB() {
   else if (spd <= 70) sensorIdx = 2;
   else sensorIdx = 6;
 
-  Motor(LTurnBackBSpdL, LTurnBackBSpdR);
-  delay(TurnBackBDelayL);
   while (1) {
     Motor(LTurnBackBSpdL, LTurnBackBSpdR);
     ReadCalibrateB();
@@ -894,8 +893,7 @@ void TurnRightBackB() {
   else if (spd <= 70) sensorIdx = 5;
   else sensorIdx = 1;
 
-  Motor(RTurnBackBSpdL, RTurnBackBSpdR);
-  delay(TurnBackBDelayR);
+
   while (1) {
     Motor(RTurnBackBSpdL, RTurnBackBSpdR);
     ReadCalibrateB();
@@ -907,10 +905,6 @@ void TurnRightBackB() {
 
 void spinl_B(int speed) {
   MotorStop();
-  delay(10);
-  Motor(-speed, speed);
-  delay(60);
-
   // เลือกเซนเซอร์ตาม tspd แบบเดียวกับ spinl() แต่ index บนอาเรย์ B[] ซึ่งเรียง
   // กลับด้าน (B_PIN เรียงย้อนจาก F_PIN) ตำแหน่งเซนเซอร์จริงจึงตรงกับที่ spinl()
   // ใช้ (F[1],F[2],F[3],F[0]) แค่แปลงเป็น index ของ B[] คือ B[6],B[5],B[4],B[7]
@@ -1080,12 +1074,14 @@ void TrackSelectF(int spd, char x) {
       ReadCalibrateF();
       while (1) {
         Motor(spd, spd);
+        delayMicroseconds(80);
         ReadCalibrateF();
         if (F[0] < Ref && F[7] < Ref) break;
       }
       delay(5);
       while (1) {
         Motor(spd, spd);
+        delayMicroseconds(80);
         ReadCalibrateF();
         if (F[0] < Ref && F[7] < Ref) {
           BZoff();
@@ -1100,12 +1096,14 @@ void TrackSelectF(int spd, char x) {
       ReadCalibrateF();
       while (1) {
         Motor(spd, spd);
+        delayMicroseconds(80);
         ReadCalibrateF();
         if (F[0] < Ref && F[7] < Ref) break;
       }
       delay(5);
       while (1) {
         Motor(spd, spd);
+        delayMicroseconds(80);
         ReadCalibrateF();
         if (F[0] < Ref && F[7] < Ref) {
           BZoff();

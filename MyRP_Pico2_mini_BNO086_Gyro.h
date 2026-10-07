@@ -265,7 +265,7 @@ void spindegree(int Speed, int relative_degree) {
     } else {
       Motor(pd_value, -pd_value);
     }
-
+    delayMicroseconds(80);  // เพิ่ม delay เพื่อให้หุ่นหมุนช้าลงและลดการสั่น
     previous_error = error;
   }
 }
@@ -350,7 +350,7 @@ void turndegreeb(int Speed, int relative_degree) {
       if (error <= 0) Motor(pd_value, 1);
       else Motor(-1, -pd_value);
     }
-
+    delayMicroseconds(80);  // เพิ่ม delay เพื่อให้หุ่นหมุนช้าลงและลดการสั่น
     previous_error = error;
   }
   SetG(5);
@@ -387,6 +387,7 @@ void rotatedegree(int SpeedL, int SpeedR, int relative_degree, float kp, float k
 
     Motor(leftPow, rightPow);
     previous_error = error;
+    delayMicroseconds(80);  // เพิ่ม delay เพื่อให้หุ่นหมุนช้าลงและลดการสั่น
   }
   SetG(5);
 }
@@ -423,6 +424,7 @@ void turndegree_none(int Speed, int relative_degree) {
     } else {
       Motor(-1, Speed);
     }
+    delayMicroseconds(80);  // เพิ่ม delay เพื่อให้หุ่นหมุนช้าลงและลดการสั่น
   }
 }
 
@@ -454,6 +456,7 @@ void turndegreeb_none(int Speed, int relative_degree) {
     } else {
       Motor(-Speed, 1);
     }
+    delayMicroseconds(80);  // เพิ่ม delay เพื่อให้หุ่นหมุนช้าลงและลดการสั่น
   }
 }
 
@@ -626,6 +629,7 @@ void RunG(int SpeedL, int SpeedR) {
 
   Motor(leftPow, rightPow);
   previous_errorG = error;
+  delayMicroseconds(80);  // เพิ่ม delay เพื่อให้หุ่นวิ่งช้าลงและลดการสั่น
 }
 
 void RunGB(int SpeedL, int SpeedR) {
@@ -641,6 +645,7 @@ void RunGB(int SpeedL, int SpeedR) {
 
   Motor(-leftPow, -rightPow);
   previous_errorGB = error;
+  delayMicroseconds(80);  // เพิ่ม delay เพื่อให้หุ่นวิ่งช้าลงและลดการสั่น
 }
 
 void fftimerg(int Speed, int totalTime) {
@@ -649,7 +654,6 @@ void fftimerg(int Speed, int totalTime) {
   unsigned long endTime = millis() + totalTime;
   while (millis() <= endTime) {
     RunG(LeftBaseSpeed, RightBaseSpeed);
-    delayMicroseconds(80);
   }
 }
 
@@ -678,7 +682,6 @@ void bbtimerg(int Speed, int totalTime) {
   unsigned long endTime = millis() + totalTime;
   while (millis() <= endTime) {
     RunGB(BackLeftBaseSpeed, BackRightBaseSpeed);
-    delayMicroseconds(80);
   }
 }
 
@@ -710,7 +713,7 @@ void ffcmgs(int Speed, float distance) {
 
       if (traveled_distance >= distance) break;
     }
-    delayMicroseconds(80);
+    //delayMicroseconds(80);
   }
 }
 
@@ -1063,7 +1066,6 @@ void ToCenterLRG() {
   }
   while (1) {
     RunG(tctL, tctR);
-    delayMicroseconds(80);
     ReadCalibrateC();
     if (C[CCL] >= RefC || C[CCR] >= RefC) {
       Motor(-tct, -tct);
@@ -1082,7 +1084,6 @@ void BackCenterG() {
   }
   while (1) {
     RunGB(bctL, bctR);
-    delayMicroseconds(80);
     ReadCalibrateC();
     if (C[CCL] >= RefC || C[CCR] >= RefC) {
       Motor(bctL, bctR);
@@ -1097,7 +1098,6 @@ void BackCenterG() {
 void ToFrontG() {
   while (1) {
     RunG(tctL, tctR);
-    delayMicroseconds(80);
     ReadCalibrateF();
     if (F[1] > Ref || F[2] > Ref || F[3] > Ref || F[4] > Ref || F[5] > Ref || F[6] > Ref) break;
   }
@@ -1106,7 +1106,6 @@ void ToFrontG() {
 void ToBackG() {
   while (1) {
     RunGB(bctL, bctR);
-    delayMicroseconds(80);
     ReadCalibrateB();
     if (B[1] > Ref || B[2] > Ref || B[3] > Ref || B[4] > Ref || B[5] > Ref || B[6] > Ref) break;
   }
@@ -1134,14 +1133,12 @@ void TrackSelectG(int spd, char select) {
     ReadCalibrateF();
     while (1) {
       RunG(LeftBaseSpeed, RightBaseSpeed);
-      delayMicroseconds(80);
       ReadCalibrateF();
       if (F[0] < Ref && F[7] < Ref) break;
     }
     fftimerg(spd, 5);
     while (1) {
       RunG(LeftBaseSpeed, RightBaseSpeed);
-      delayMicroseconds(80);
       ReadCalibrateF();
       if (F[0] < Ref && F[7] < Ref) break;
     }
@@ -1153,7 +1150,6 @@ void TrackSelectG(int spd, char select) {
     }
     while (1) {
       RunG(LeftBaseSpeed, RightBaseSpeed);
-      delayMicroseconds(80);
       ReadCalibrateC();
       if (C[CCL] >= RefC || C[CCR] >= RefC) {
         Motor(-spd, -spd);
@@ -1170,7 +1166,6 @@ void TrackSelectG(int spd, char select) {
     }
     while (1) {
       RunG(tctL, tctR);
-      delayMicroseconds(80);
       ReadCalibrateC();
       if (C[CCL] >= RefC || C[CCR] >= RefC) {
         break;
@@ -1178,7 +1173,6 @@ void TrackSelectG(int spd, char select) {
     }
     while (1) {
       RunG(tctL, tctR);
-      delayMicroseconds(80);
       ReadCalibrateB();
       if ((B[0] > Ref || B[7] > Ref)) {
         Motor(-tctL, -tctR);
@@ -1227,14 +1221,12 @@ void TrackSelectGB(int spd, char select) {
     ReadCalibrateB();
     while (1) {
       RunGB(BackLeftBaseSpeed, BackRightBaseSpeed);
-      delayMicroseconds(80);
       ReadCalibrateB();
       if (B[0] < Ref && B[7] < Ref) break;
     }
     bbtimerg(spd, 5);
     while (1) {
       RunGB(BackLeftBaseSpeed, BackRightBaseSpeed);
-      delayMicroseconds(80);
       ReadCalibrateB();
       if (B[0] < Ref && B[7] < Ref) break;
     }
@@ -1246,7 +1238,6 @@ void TrackSelectGB(int spd, char select) {
     }
     while (1) {
       RunGB(BackLeftBaseSpeed, BackRightBaseSpeed);
-      delayMicroseconds(80);
       ReadCalibrateC();
       if (C[CCL] >= RefC || C[CCR] >= RefC) {
         Motor(spd, spd);
@@ -1263,7 +1254,6 @@ void TrackSelectGB(int spd, char select) {
     }
     while (1) {
       RunGB(bctL, bctR);
-      delayMicroseconds(80);
       ReadCalibrateC();
       if (C[CCL] >= RefC || C[CCR] >= RefC) {
         break;
@@ -1271,7 +1261,6 @@ void TrackSelectGB(int spd, char select) {
     }
     while (1) {
       RunGB(bctL, bctR);
-      delayMicroseconds(80);
       ReadCalibrateB();
       if ((B[0] > Ref || B[7] > Ref)) {
         Motor(bctL, bctR);
@@ -1309,7 +1298,6 @@ void ffbg(int Speed, char select) {
   InitialSpeed();
   while (1) {
     RunG(LeftBaseSpeed, RightBaseSpeed);
-    delayMicroseconds(80);
     ReadCalibrateF();
     if (F[1] > Ref || F[2] > Ref || F[3] > Ref || F[4] > Ref || F[5] > Ref || F[6] > Ref) break;
   }
@@ -1321,7 +1309,7 @@ void bbbg(int Speed, char select) {
   InitialSpeed();
   while (1) {
     RunGB(BackLeftBaseSpeed, BackRightBaseSpeed);
-    delayMicroseconds(80);
+
     ReadCalibrateB();
     if (B[1] > Ref || B[2] > Ref || B[3] > Ref || B[4] > Ref || B[5] > Ref || B[6] > Ref) break;
   }
@@ -1342,7 +1330,7 @@ void ffdg(int Speed, char select, float distance_cm) {
   InitialSpeed();
   while (1) {
     RunG(LeftBaseSpeed, RightBaseSpeed);
-    delayMicroseconds(80);
+
     if (analogRead(DIST) >= distance_cm) break;
   }
   TrackSelectG(Speed, select);
@@ -1353,7 +1341,7 @@ void bbdg(int Speed, char select, float distance_cm) {
   InitialSpeed();
   while (1) {
     RunGB(BackLeftBaseSpeed, BackRightBaseSpeed);
-    delayMicroseconds(80);
+
     if (analogRead(DIST) <= distance_cm) break;
   }
   TrackSelectGB(Speed, select);
@@ -1364,7 +1352,7 @@ void ffdgs(int Speed, char select, float distance_cm) {
   InitialSpeed();
   while (1) {
     RunG(LeftBaseSpeed, RightBaseSpeed);
-    delayMicroseconds(80);
+
     if (analogRead(DIST) >= distance_cm) break;
   }
   TrackSelectG(Speed, select);
@@ -1375,7 +1363,7 @@ void bbdgs(int Speed, char select, float distance_cm) {
   InitialSpeed();
   while (1) {
     RunGB(BackLeftBaseSpeed, BackRightBaseSpeed);
-    delayMicroseconds(80);
+
     if (analogRead(DIST) <= distance_cm) break;
   }
   TrackSelectGB(Speed, select);
