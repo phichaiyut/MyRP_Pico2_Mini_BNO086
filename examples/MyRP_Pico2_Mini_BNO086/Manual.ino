@@ -23,6 +23,7 @@
 // set_brake_fc(ff, fc);             set_brake_bc(bf, bc);             // เวลาเบรก (ms)
 // SetTurnSpeed(speed);
 // TurnSpeedLeft(l, r, delay);       TurnSpeedRight(l, r, delay);
+// SetSensorTurnLeftRight(l, r);     // เซนเซอร์หน้าที่หยุดเลี้ยว TurnLeft (F[0..l]) / TurnRight (F[7..r])
 // TurnBackSpeedLeft(l, r, delay);   TurnBackSpeedRight(l, r, delay);
 // TurnSpeedLeftBackF(l, r, delay);  TurnSpeedRightBackF(l, r, delay);
 // TurnSpeedLeftBackB(l, r, delay);  TurnSpeedRightBackB(l, r, delay);

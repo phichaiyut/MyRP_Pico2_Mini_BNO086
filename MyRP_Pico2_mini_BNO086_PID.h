@@ -13,7 +13,7 @@ int LTurnBackFSpdL, LTurnBackFSpdR, TurnBackFDelayL;
 int RTurnBackFSpdL, RTurnBackFSpdR, TurnBackFDelayR;
 int LTurnBackBSpdL, LTurnBackBSpdR, TurnBackBDelayL;
 int RTurnBackBSpdL, RTurnBackBSpdR, TurnBackBDelayR;
-
+int LChTurn = 2, RChTurn = 5;
 int tct_delay_break = 0;
 int bct_delay_break = 0;
 int break_ff = 5, break_fc = 30, break_bf = 10, break_bc = 20; // การหน่วง
@@ -77,6 +77,11 @@ void set_slow_kp_kd(float kp_f, float kd_f, float kp_b, float kd_b) {
 
 void Dottedline(int x) {
   dottedline = x;
+}
+
+void SetSensorTurnLeftRight(int l, int r) {
+  LChTurn = l;
+  RChTurn = r;
 }
 
 void SetTurnSpeed(int tspdv) {
@@ -600,22 +605,31 @@ void ToBack() {
 // ---------- Turns / Spins ----------
 
 void TurnLeft() {
-  Motor(LTurnSpdL, LTurnSpdR);
-  delay(TurnDelayL);
-  while (1) {
-    Motor(LTurnSpdL, LTurnSpdR);
-    ReadCalibrateF();
-    if (F[2] >= Ref) break;
+  // Motor(LTurnSpdL, LTurnSpdR);
+  // delay(TurnDelayL);
+  // while (1) {
+  //   Motor(LTurnSpdL, LTurnSpdR);
+  //   ReadCalibrateF();
+  //   if (F[2] >= Ref) break;
+  // }
+  for (int i = 0; i <= LChTurn; i++) {
+    do {
+      Motor(LTurnSpdL, LTurnSpdR);
+      delayMicroseconds(80);
+      ReadCalibrateF();
+    } while (F[i] <= Ref);
   }
 }
 
 void TurnRight() {
-  Motor(RTurnSpdL, RTurnSpdR);
-  delay(TurnDelayR);
-  while (1) {
-    Motor(RTurnSpdL, RTurnSpdR);
-    ReadCalibrateF();
-    if (F[5] >= Ref) break;
+  // Motor(RTurnSpdL, RTurnSpdR);
+  // delay(TurnDelayR);
+  for (int i = 7; i >= RChTurn; i--) {
+    do {
+      Motor(RTurnSpdL, RTurnSpdR);
+      delayMicroseconds(80);
+      ReadCalibrateF();
+    } while (F[i] <= Ref);
   }
 }
 
@@ -662,9 +676,9 @@ void TurnRightBackF() {
 
 void spinl(int speed) {
   MotorStop();
-  delay(10);
-  Motor(-speed, speed);
-  delay(60);
+  // delay(10);
+  // Motor(-speed, speed);
+  // delay(60);
 
   // เลือกเซนเซอร์ตามความเร็ว tspd: ยิ่งหมุนช้า ยิ่งใช้เซนเซอร์ที่ห่างออกไป
   // (เผื่อระยะเหวี่ยงที่แคบลง) ตรวจสอบจากช่วงแคบไปกว้างเพื่อให้ทุกเงื่อนไข
@@ -675,20 +689,27 @@ void spinl(int speed) {
   else if (speed <= 70) sensorIdx = 2;
   else sensorIdx = 1;
 
-  while (1) {
-    ReadCalibrateF();
-    Motor(-speed, speed);
-    if (F[sensorIdx] <= Ref) break;
-  }
-  while (1) {
-    ReadCalibrateF();
-    Motor(-speed, speed);
-    if (F[sensorIdx] <= Ref) break;
-  }
-  while (1) {
-    ReadCalibrateF();
-    Motor(-speed, speed);
-    if (F[sensorIdx] >= Ref) break;
+  // while (1) {
+  //   ReadCalibrateF();
+  //   Motor(-speed, speed);
+  //   if (F[sensorIdx] <= Ref) break;
+  // }
+  // while (1) {
+  //   ReadCalibrateF();
+  //   Motor(-speed, speed);
+  //   if (F[sensorIdx] <= Ref) break;
+  // }
+  // while (1) {
+  //   ReadCalibrateF();
+  //   Motor(-speed, speed);
+  //   if (F[sensorIdx] >= Ref) break;
+  // }
+  for (int i = 0; i <= sensorIdx; i++) {
+    do {
+      Motor(-speed, speed);
+delayMicroseconds(80);
+      ReadCalibrateF();
+    } while (F[i] <= Ref);
   }
   Motor(speed, -speed);
   delay(5);
@@ -702,34 +723,33 @@ void spinl() {
 
 void spinl2(int speed) {
   MotorStop();
-  delay(10);
-  Motor(-speed, speed);
-  delay(60);
+  // delay(10);
+  // Motor(-speed, speed);
+  // delay(60);
   int sensorIdx;
   if (speed >= 80) sensorIdx = 1;
   else if (speed <= 50) sensorIdx = 3;
   else if (speed <= 70) sensorIdx = 2;
   else sensorIdx = 1;
-  while (1) {
-    ReadCalibrateF();
-    Motor(-speed, speed);
-    if (F[sensorIdx] >= Ref) break;
+  // 
+  for (int i = 0; i <= sensorIdx; i++) {
+    do {
+      Motor(-speed, speed);
+      delayMicroseconds(80);
+      ReadCalibrateF();
+    } while (F[i] <= Ref);
   }
-
-  Motor(-speed, speed);
-  delay(30);
-
-  while (1) {
-    ReadCalibrateF();
-    Motor(-speed, speed);
-    if (F[sensorIdx] >= Ref) {
-      Motor(speed, -speed);
-      delay(5);
-      lf(speed);
-      MotorStop();
-      break;
-    }
+  for (int i = 0; i <= sensorIdx; i++) {
+    do {
+      Motor(-speed, speed);
+      delayMicroseconds(80);
+      ReadCalibrateF();
+    } while (F[i] <= Ref);
   }
+   Motor(speed, -speed);
+  delay(5);
+  lf(speed);
+  MotorStop();
 }
 
 void spinl2() {
@@ -738,9 +758,9 @@ void spinl2() {
 
 void spinr(int speed) {
   MotorStop();
-  delay(10);
-  Motor(speed, -speed);
-  delay(60);
+  // delay(10);
+  // Motor(speed, -speed);
+  // delay(60);
 
   // เลือกเซนเซอร์ตามความเร็ว tspd แบบเดียวกับ spinl() แต่ mirror ไปฝั่งขวา
   // (F[2]<->F[5], F[1]<->F[6], F[3]<->F[4], F[0]<->F[7])
@@ -750,20 +770,27 @@ void spinr(int speed) {
   else if (speed <= 70) sensorIdx = 5;
   else sensorIdx = 6;
 
-  while (1) {
-    ReadCalibrateF();
-    Motor(speed, -speed);
-    if (F[sensorIdx] <= Ref) break;
-  }
-  while (1) {
-    ReadCalibrateF();
-    Motor(speed, -speed);
-    if (F[sensorIdx] <= Ref) break;
-  }
-  while (1) {
-    ReadCalibrateF();
-    Motor(speed, -speed);
-    if (F[sensorIdx] >= Ref) break;
+  // while (1) {
+  //   ReadCalibrateF();
+  //   Motor(speed, -speed);
+  //   if (F[sensorIdx] <= Ref) break;
+  // }
+  // while (1) {
+  //   ReadCalibrateF();
+  //   Motor(speed, -speed);
+  //   if (F[sensorIdx] <= Ref) break;
+  // }
+  // while (1) {
+  //   ReadCalibrateF();
+  //   Motor(speed, -speed);
+  //   if (F[sensorIdx] >= Ref) break;
+  // }
+  for (int i = 7; i >= sensorIdx; i--) {
+    do {
+      Motor(speed, -speed);
+      delayMicroseconds(80);
+      ReadCalibrateF();
+    } while (F[i] <= Ref);
   }
   Motor(-speed, speed);
   delay(5);
@@ -786,24 +813,42 @@ void spinr2(int speed) {
   else if (speed <= 70) sensorIdx = 5;
   else sensorIdx = 6;
 
-  while (1) {
-    ReadCalibrateF();
-    Motor(speed, -speed);
-    if (F[sensorIdx] >= Ref) break;
+  // while (1) {
+  //   ReadCalibrateF();
+  //   Motor(speed, -speed);
+  //   if (F[sensorIdx] >= Ref) break;
+  // }
+  // Motor(speed, -speed);
+  // delay(30);
+  // while (1) {
+  //   ReadCalibrateF();
+  //   Motor(speed, -speed);
+  //   if (F[sensorIdx] >= Ref) {
+  //     Motor(-speed, speed);
+  //     delay(5);
+  //     lf(speed);
+  //     MotorStop();
+  //     break;
+  //   }
+  // }
+  for (int i = 7; i >= sensorIdx; i--) {
+    do {
+      Motor(speed, -speed);
+      delayMicroseconds(80);
+      ReadCalibrateF();
+    } while (F[i] <= Ref);
   }
-  Motor(speed, -speed);
-  delay(30);
-  while (1) {
-    ReadCalibrateF();
-    Motor(speed, -speed);
-    if (F[sensorIdx] >= Ref) {
-      Motor(-speed, speed);
+  for (int i = 7; i >= sensorIdx; i--) {
+    do {
+      Motor(speed, -speed);
+      delayMicroseconds(80);
+      ReadCalibrateF();
+    } while (F[i] <= Ref);
+  }
+  Motor(-speed, speed);
       delay(5);
       lf(speed);
       MotorStop();
-      break;
-    }
-  }
 }
 
 void spinr2() {
@@ -890,32 +935,46 @@ void spinl_B(int speed) {
   else if (tspd <= 50) sensorIdx = 4;
   else if (tspd <= 70) sensorIdx = 5;
   else sensorIdx = 6;
-  while (1) {
-    ReadCalibrateB();
-    Motor(-speed, speed);
-    if (B[sensorIdx] <= Ref) {
-      break;
-    }
-  }
-  while (1) {
-    ReadCalibrateB();
-    Motor(-speed, speed);
-    if (B[sensorIdx] <= Ref) {
-      break;
-    }
-  }
-  while (1) {
-    ReadCalibrateB();
-    Motor(-speed, speed);
+  // while (1) {
+  //   ReadCalibrateB();
+  //   Motor(-speed, speed);
+  //   if (B[sensorIdx] <= Ref) {
+  //     break;
+  //   }
+  // }
+  // while (1) {
+  //   ReadCalibrateB();
+  //   Motor(-speed, speed);
+  //   if (B[sensorIdx] <= Ref) {
+  //     break;
+  //   }
+  // }
+  // while (1) {
+  //   ReadCalibrateB();
+  //   Motor(-speed, speed);
 
-    if (B[sensorIdx] >= Ref) {
-      Motor(speed, -speed);
+  //   if (B[sensorIdx] >= Ref) {
+  //     Motor(speed, -speed);
+  //     delay(5);
+  //     lb(speed);
+  //     MotorStop();
+  //     break;
+  //   }
+  // }
+
+  for (int i = 7; i >= sensorIdx; i--) {
+    do {
+      Motor(-speed, speed);
+      delayMicroseconds(80);
+      ReadCalibrateB();
+    } while (B[i] <= Ref);
+  }
+  Motor(speed, -speed);
       delay(5);
       lb(speed);
       MotorStop();
-      break;
-    }
-  }
+
+
 }
 
 void spinl_B() {
@@ -934,24 +993,43 @@ void spinl2_B(int speed) {
   else if (tspd <= 50) sensorIdx = 4;
   else if (tspd <= 70) sensorIdx = 5;
   else sensorIdx = 6;
-  while (1) {
-    ReadCalibrateB();
-    Motor(-speed, speed);
-    if (B[sensorIdx] >= Ref) break;
+  // while (1) {
+  //   ReadCalibrateB();
+  //   Motor(-speed, speed);
+  //   if (B[sensorIdx] >= Ref) break;
+  // }
+  // Motor(-speed, speed);
+  // delay(30);
+  // while (1) {
+  //   ReadCalibrateB();
+  //   Motor(-speed, speed);
+  //   if (B[sensorIdx] >= Ref) {
+  //     Motor(speed, -speed);
+  //     delay(5);
+  //     lb(speed);
+  //     MotorStop();
+  //     break;
+  //   }
+  // }
+for (int i = 7; i >= sensorIdx; i--) {
+    do {
+      Motor(-speed, speed);
+      delayMicroseconds(80);
+      ReadCalibrateB();
+    } while (B[i] <= Ref);
   }
-  Motor(-speed, speed);
-  delay(30);
-  while (1) {
-    ReadCalibrateB();
-    Motor(-speed, speed);
-    if (B[sensorIdx] >= Ref) {
-      Motor(speed, -speed);
+  for (int i = 7; i >= sensorIdx; i--) {
+    do {
+      Motor(-speed, speed);
+      delayMicroseconds(80);
+      ReadCalibrateB();
+    } while (B[i] <= Ref);
+  }
+  Motor(speed, -speed);
       delay(5);
       lb(speed);
       MotorStop();
-      break;
-    }
-  }
+
 }
 
 void spinl2_B() {
@@ -962,9 +1040,9 @@ void spinl2_B() {
 
 void spinr_B(int speed) {
   MotorStop();
-  delay(10);
-  Motor(speed, -speed);
-  delay(60);
+  // delay(10);
+  // Motor(speed, -speed);
+  // delay(60);
 
   // เลือกเซนเซอร์ตาม tspd แบบเดียวกับ spinr() แต่ index บนอาเรย์ B[] ซึ่งเรียง
   // กลับด้าน ตำแหน่งเซนเซอร์จริงตรงกับที่ spinr() ใช้ (F[6],F[5],F[4],F[7])
@@ -975,24 +1053,17 @@ void spinr_B(int speed) {
   else if (tspd <= 70) sensorIdx = 2;
   else sensorIdx = 1;
 
-  while (1) {
-    ReadCalibrateB();
-    Motor(speed, -speed);
-    if (B[sensorIdx] <= Ref) {
-      break;
-    }
+  for (int i = 0; i <= sensorIdx; i++) {
+    do {
+      Motor(speed, -speed);
+      delayMicroseconds(80);
+      ReadCalibrateB();
+    } while (B[i] <= Ref);
   }
-  while (1) {
-    ReadCalibrateB();
-    Motor(speed, -speed);
-    if (B[sensorIdx] >= Ref) {
-      Motor(-speed, speed);
+  Motor(-speed, speed);
       delay(5);
       lb(speed);
       MotorStop();
-      break;
-    }
-  }
 }
 
 void spinr_B() {
@@ -1003,32 +1074,32 @@ void spinr_B() {
 
 void spinr2_B(int speed) {
   MotorStop();
-  delay(10);
-  Motor(speed, -speed);
-  delay(60);
+  // delay(10);
+  // Motor(speed, -speed);
+  // delay(60);
   int sensorIdx;
   if (tspd >= 80) sensorIdx = 1;
   else if (tspd <= 50) sensorIdx = 3;
   else if (tspd <= 70) sensorIdx = 2;
   else sensorIdx = 1;
-  while (1) {
-    ReadCalibrateB();
-    Motor(speed, -speed);
-    if (B[sensorIdx] >= Ref) break;
+ for (int i = 0; i <= sensorIdx; i++) {
+    do {
+      Motor(speed, -speed);
+      delayMicroseconds(80);
+      ReadCalibrateB();
+    } while (B[i] <= Ref);
   }
-  Motor(speed, -speed);
-  delay(30);
-  while (1) {
-    ReadCalibrateB();
-    Motor(speed, -speed);
-    if (B[sensorIdx] >= Ref) {
-      Motor(-speed, speed);
+  for (int i = 0; i <= sensorIdx; i++) {
+    do {
+      Motor(speed, -speed);
+      delayMicroseconds(80);
+      ReadCalibrateB();
+    } while (B[i] <= Ref);
+  }
+  Motor(-speed, speed);
       delay(5);
-      lb(tspd);
+      lb(speed);
       MotorStop();
-      break;
-    }
-  }
 }
 
 void spinr2_B() {
