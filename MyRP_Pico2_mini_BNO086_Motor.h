@@ -17,12 +17,8 @@ bool DC_Motors = true;
 
 BatteryMonitor bat;
 
-inline void updateBattery() {
-  bat.update();
-}
-inline float getBatteryVoltage() {
-  return bat.getVoltage();
-}
+inline void updateBattery() { bat.update(); }
+inline float getBatteryVoltage() { return bat.getVoltage(); }
 
 float scale = 1.0f;
 
@@ -63,7 +59,7 @@ void Motor(int left, int right) {
   int pwmL = map(abs(left), 0, 100, 0, 4095);
   int pwmR = map(abs(right), 0, 100, 0, 4095);
 
-  pwmL = constrain((int)(pwmL * scale), 0, 3850);  // Safety limit
+  pwmL = constrain((int)(pwmL * scale), 0, 3850);   // Safety limit
   pwmR = constrain((int)(pwmR * scale), 0, 3850);
 
   // LEFT MOTOR
@@ -94,6 +90,7 @@ void Motor(int left, int right) {
 
   analogWrite(PWMA, pwmL);
   analogWrite(PWMB, pwmR);
+  delayMicroseconds(50);  // ป้องกันเรียก Motor() รัวเกินไป
 }
 
 void Move(int l, int r, int t) {
@@ -144,8 +141,8 @@ int L[10], R[10];
 int BL[10], BR[10];
 float KP[10], KD[10];
 float KP_Back[10], KD_Back[10];
-int delay_break_f_table[10] = { 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 };
-int delay_break_b_table[10] = { 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 };
+int delay_break_f_table[10] = {30, 30, 30, 30, 30, 30, 30, 30, 30, 30};
+int delay_break_b_table[10] = {30, 30, 30, 30, 30, 30, 30, 30, 30, 30};
 
 
 // ดัชนีตารางความเร็ว (ใช้กับ setBalanceSpeed/Set_KP_KD ฯลฯ)
@@ -195,9 +192,9 @@ void InitialSpeed() {
   RightBaseSpeed = BaseSpeed - R[idx];
   BackLeftBaseSpeed = BaseSpeed - BL[idx];
   BackRightBaseSpeed = BaseSpeed - BR[idx];
-  PID_KP_Front = KP[idx];  // forward PID
+  PID_KP_Front = KP[idx];       // forward PID
   PID_KD_Front = KD[idx];
-  PID_KP_Back = KP_Back[idx];  // backward PID
+  PID_KP_Back = KP_Back[idx];   // backward PID
   PID_KD_Back = KD_Back[idx];
   delay_break_f = delay_break_f_table[idx];
   delay_break_b = delay_break_b_table[idx];
@@ -239,4 +236,4 @@ void tr(int Speed, int time_ms) {
   MotorStop(0);
 }
 
-#endif  // MYRP_PICO2_MINI_MOTOR_H
+#endif // MYRP_PICO2_MINI_MOTOR_H

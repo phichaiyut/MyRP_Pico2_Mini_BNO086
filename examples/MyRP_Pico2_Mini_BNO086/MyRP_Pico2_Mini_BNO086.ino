@@ -13,7 +13,8 @@ void setup() {
   S28_trim(0);
   //__________________
   // arm_down_open();
-  arm_up_open();
+  arm_up();
+     arm_left_right(175,175,0);
   // arm_down_close();
   // arm_up_close();
   // arm_down();

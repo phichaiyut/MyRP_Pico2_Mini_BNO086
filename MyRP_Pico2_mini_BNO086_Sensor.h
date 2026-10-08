@@ -22,7 +22,7 @@ int sensorMaxC[2], sensorMinC[2];
 
 uint8_t F_PIN[NUM_SENSORS] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 uint8_t B_PIN[NUM_SENSORS] = { 7, 6, 5, 4, 3, 2, 1, 0 };
-uint8_t C_PIN[2] = { 26, 27 };
+uint8_t C_PIN[2] = {26, 27};
 
 // ใช้เฉพาะฟังก์ชันที่มี _LOCAL (เก็บ/โหลด EEPROM flash ของ Pico 2 ตัวนี้เอง)
 int minValueF[NUM_SENSORS], maxValueF[NUM_SENSORS];
@@ -143,19 +143,18 @@ void calibrateA() {
   // บันทึกลง EEPROM
   byte buf[16];
   for (int i = 0; i < 8; i++) {
-    buf[i * 2] = highByte(sensorMaxA[i]);
-    buf[i * 2 + 1] = lowByte(sensorMaxA[i]);
+    buf[i*2]   = highByte(sensorMaxA[i]);
+    buf[i*2+1] = lowByte(sensorMaxA[i]);
   }
   writeEEPROM(EEPROM_ADDRESS, 0, buf, 16);
 
   for (int i = 0; i < 8; i++) {
-    buf[i * 2] = highByte(sensorMinA[i]);
-    buf[i * 2 + 1] = lowByte(sensorMinA[i]);
+    buf[i*2]   = highByte(sensorMinA[i]);
+    buf[i*2+1] = lowByte(sensorMinA[i]);
   }
   writeEEPROM(EEPROM_ADDRESS, 16, buf, 16);
 
-  beep(3000, 100);
-  delay(150);
+  beep(3000, 100); delay(150);
   beep(3000, 200);
   Serial.println("✓ Calibrate Sensor A เสร็จสิ้น");
 }
@@ -171,14 +170,14 @@ void saveCalibA_LOCAL() {
 
   byte buf[16];
   for (int i = 0; i < 8; i++) {
-    buf[i * 2] = highByte(maxValueF[i]);
-    buf[i * 2 + 1] = lowByte(maxValueF[i]);
+    buf[i*2]   = highByte(maxValueF[i]);
+    buf[i*2+1] = lowByte(maxValueF[i]);
   }
   writeEEPROM_LOCAL(0, buf, 16);
 
   for (int i = 0; i < 8; i++) {
-    buf[i * 2] = highByte(minValueF[i]);
-    buf[i * 2 + 1] = lowByte(minValueF[i]);
+    buf[i*2]   = highByte(minValueF[i]);
+    buf[i*2+1] = lowByte(minValueF[i]);
   }
   writeEEPROM_LOCAL(16, buf, 16);
 
@@ -210,19 +209,18 @@ void calibrateB() {
 
   byte buf[16];
   for (int i = 0; i < 8; i++) {
-    buf[i * 2] = highByte(sensorMaxB[i]);
-    buf[i * 2 + 1] = lowByte(sensorMaxB[i]);
+    buf[i*2]   = highByte(sensorMaxB[i]);
+    buf[i*2+1] = lowByte(sensorMaxB[i]);
   }
   writeEEPROM(EEPROM_ADDRESS, 32, buf, 16);
 
   for (int i = 0; i < 8; i++) {
-    buf[i * 2] = highByte(sensorMinB[i]);
-    buf[i * 2 + 1] = lowByte(sensorMinB[i]);
+    buf[i*2]   = highByte(sensorMinB[i]);
+    buf[i*2+1] = lowByte(sensorMinB[i]);
   }
   writeEEPROM(EEPROM_ADDRESS, 48, buf, 16);
 
-  beep(3000, 100);
-  delay(150);
+  beep(3000, 100); delay(150);
   beep(3000, 200);
   Serial.println("✓ Calibrate Sensor B เสร็จสิ้น");
 }
@@ -238,14 +236,14 @@ void saveCalibB_LOCAL() {
 
   byte buf[16];
   for (int i = 0; i < 8; i++) {
-    buf[i * 2] = highByte(maxValueB[i]);
-    buf[i * 2 + 1] = lowByte(maxValueB[i]);
+    buf[i*2]   = highByte(maxValueB[i]);
+    buf[i*2+1] = lowByte(maxValueB[i]);
   }
   writeEEPROM_LOCAL(32, buf, 16);
 
   for (int i = 0; i < 8; i++) {
-    buf[i * 2] = highByte(minValueB[i]);
-    buf[i * 2 + 1] = lowByte(minValueB[i]);
+    buf[i*2]   = highByte(minValueB[i]);
+    buf[i*2+1] = lowByte(minValueB[i]);
   }
   writeEEPROM_LOCAL(48, buf, 16);
 
@@ -280,19 +278,18 @@ void calibrateC() {
 
   uint8_t buf[4];
   for (int i = 0; i < 2; i++) {
-    buf[i * 2] = highByte(sensorMaxC[i]);
-    buf[i * 2 + 1] = lowByte(sensorMaxC[i]);
+    buf[i*2]   = highByte(sensorMaxC[i]);
+    buf[i*2+1] = lowByte(sensorMaxC[i]);
   }
   writeEEPROM(EEPROM_ADDRESS, 64, buf, 4);
 
   for (int i = 0; i < 2; i++) {
-    buf[i * 2] = highByte(sensorMinC[i]);
-    buf[i * 2 + 1] = lowByte(sensorMinC[i]);
+    buf[i*2]   = highByte(sensorMinC[i]);
+    buf[i*2+1] = lowByte(sensorMinC[i]);
   }
   writeEEPROM(EEPROM_ADDRESS, 68, buf, 4);
 
-  beep(3000, 150);
-  delay(200);
+  beep(3000, 150); delay(200);
   beep(3000, 200);
   Serial.println("✓ Calibrate Sensor C เสร็จสิ้น");
 }
@@ -308,14 +305,14 @@ void saveCalibC_LOCAL() {
 
   uint8_t buf[4];
   for (int i = 0; i < 2; i++) {
-    buf[i * 2] = highByte(maxValueC[i]);
-    buf[i * 2 + 1] = lowByte(maxValueC[i]);
+    buf[i*2]   = highByte(maxValueC[i]);
+    buf[i*2+1] = lowByte(maxValueC[i]);
   }
   writeEEPROM_LOCAL(64, buf, 4);
 
   for (int i = 0; i < 2; i++) {
-    buf[i * 2] = highByte(minValueC[i]);
-    buf[i * 2 + 1] = lowByte(minValueC[i]);
+    buf[i*2]   = highByte(minValueC[i]);
+    buf[i*2+1] = lowByte(minValueC[i]);
   }
   writeEEPROM_LOCAL(68, buf, 4);
 
@@ -328,11 +325,11 @@ void read_eepA() {
   byte buf[16];
   readEEPROM(EEPROM_ADDRESS, 0, buf, 16);
   for (int i = 0; i < 8; i++) {
-    sensorMaxA[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    sensorMaxA[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
   readEEPROM(EEPROM_ADDRESS, 16, buf, 16);
   for (int i = 0; i < 8; i++) {
-    sensorMinA[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    sensorMinA[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
 }
 
@@ -340,11 +337,11 @@ void read_eepB() {
   byte buf[16];
   readEEPROM(EEPROM_ADDRESS, 32, buf, 16);
   for (int i = 0; i < 8; i++) {
-    sensorMaxB[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    sensorMaxB[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
   readEEPROM(EEPROM_ADDRESS, 48, buf, 16);
   for (int i = 0; i < 8; i++) {
-    sensorMinB[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    sensorMinB[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
 }
 
@@ -352,11 +349,11 @@ void read_eepC() {
   byte buf[4];
   readEEPROM(EEPROM_ADDRESS, 64, buf, 4);
   for (int i = 0; i < 2; i++) {
-    sensorMaxC[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    sensorMaxC[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
   readEEPROM(EEPROM_ADDRESS, 68, buf, 4);
   for (int i = 0; i < 2; i++) {
-    sensorMinC[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    sensorMinC[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
 }
 
@@ -364,11 +361,11 @@ void read_eepA_LOCAL() {
   byte buf[16];
   readEEPROM_LOCAL(0, buf, 16);
   for (int i = 0; i < 8; i++) {
-    maxValueF[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    maxValueF[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
   readEEPROM_LOCAL(16, buf, 16);
   for (int i = 0; i < 8; i++) {
-    minValueF[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    minValueF[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
 }
 
@@ -376,11 +373,11 @@ void read_eepB_LOCAL() {
   byte buf[16];
   readEEPROM_LOCAL(32, buf, 16);
   for (int i = 0; i < 8; i++) {
-    maxValueB[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    maxValueB[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
   readEEPROM_LOCAL(48, buf, 16);
   for (int i = 0; i < 8; i++) {
-    minValueB[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    minValueB[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
 }
 
@@ -388,11 +385,11 @@ void read_eepC_LOCAL() {
   byte buf[4];
   readEEPROM_LOCAL(64, buf, 4);
   for (int i = 0; i < 2; i++) {
-    maxValueC[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    maxValueC[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
   readEEPROM_LOCAL(68, buf, 4);
   for (int i = 0; i < 2; i++) {
-    minValueC[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+    minValueC[i] = (buf[i*2] << 8) | buf[i*2 + 1];
   }
 }
 
@@ -690,4 +687,4 @@ void SerialDistance() {
   }
 }
 
-#endif  // MYRP_PICO2_MINI_SENSOR_H
+#endif // MYRP_PICO2_MINI_SENSOR_H

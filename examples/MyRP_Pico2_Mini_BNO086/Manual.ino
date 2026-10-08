@@ -24,7 +24,6 @@
 // SetTurnSpeed(speed);
 // TurnSpeedLeft(l, r, delay);       TurnSpeedRight(l, r, delay);
 // SetSensorTurnLeftRight(l, r);     // เซนเซอร์หน้าที่หยุดเลี้ยว TurnLeft (F[0..l]) / TurnRight (F[7..r])
-// SetSensorTurnLeftRight_B(l, r);   // เซนเซอร์หลังที่หยุดเลี้ยว TurnLeft_B (B[7..l]) / TurnRight_B (B[0..r])
 // TurnBackSpeedLeft(l, r, delay);   TurnBackSpeedRight(l, r, delay);
 // TurnSpeedLeftBackF(l, r, delay);  TurnSpeedRightBackF(l, r, delay);
 // TurnSpeedLeftBackB(l, r, delay);  TurnSpeedRightBackB(l, r, delay);
@@ -32,6 +31,7 @@
 // ModeSpdGyro(mode, max, min);      ModeSpdGyro(modeF, modeB, max, min);
 //   mode 0 = 0..max | 1 = min..max | 2 = -Speed..Speed | 3 = ..max | 4 = 0..Speed
 // set_position_line(3500);          set_position_line_l(pos);         set_position_line_r(pos);
+// set_slow_kp_kd(kpf, kdf, kpb, kdb);
 // SetAnalogDistance(A0);
 // --- ตารางความเร็ว (ch = SPD_10 ... SPD_100) ---
 // setBalanceSpeed(ch, l, r);        setBalanceBackSpeed(ch, l, r);
