@@ -23,8 +23,8 @@ void Setting() {
   /******************** TURN & SPEED CONFIG ********************/
   SetTurnSpeed(50);  // ความเร็วเลี้ยวหุ่น (l L ) (r R)
 
-  TurnSpeedLeft(-25, 100, 60);     // เลี้ยวซ้าย (q Q)
-  TurnSpeedRight(100, -25, 60);    // เลี้ยวขวา (e E)
+  TurnSpeedLeft(-15, 100, 10);     // เลี้ยวซ้าย (q Q)
+  TurnSpeedRight(100, -15, 10);    // เลี้ยวขวา (e E)
   SetSensorTurnLeftRight(2, 5);    // เซนเซอร์หน้าที่ใช้หยุดเลี้ยว (ซ้าย 0–7, ขวา 0–7) ของ TurnLeft/TurnRight
   SetSensorTurnLeftRight_B(5, 2);  // เซนเซอร์หลังที่ใช้หยุดเลี้ยวของ TurnLeft_B (B[7..l]) / TurnRight_B (B[0..r])
 
