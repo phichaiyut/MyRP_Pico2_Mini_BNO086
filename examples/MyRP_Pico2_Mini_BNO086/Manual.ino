@@ -142,7 +142,6 @@
 
 
 /* ===== [8] Gyro วิ่งตรง (direction ใส่ท้ายได้ = ล็อกทิศ) ===== */
-// dir = ทิศที่หุ่นเคลื่อนที่ไป ทั้งเดินหน้าและถอยหลัง เช่น bbcmg(speed, cm, 'p', 180) = ถอยไปทิศ 180 (หน้าหันทิศ 0)
 // fftimerg(speed, ms);          fftimerg(speed, ms, 'p');     fftimerg(speed, ms, 'p', dir);
 // bbtimerg(speed, ms);          bbtimerg(speed, ms, 'p');     bbtimerg(speed, ms, 'p', dir);
 // fftg(speed, ms, 'p');         bbtg(speed, ms, 'p');         // + dir ได้
