@@ -72,7 +72,7 @@ delay(3000);
   }
   Serial.println("BNO08x found!");
 
-  myIMU.enableRotationVector(50);  //
+  myIMU.enableRotationVector(5);  //
   resetYaw();
   // ตั้งความเร็ว I2C หลังสุด เพราะ bat.begin()/bno08xBegin() เรียก Wire.begin() ซ้ำข้างใน
   // ซึ่งจะรีเซ็ตความเร็วบัสกลับเป็นค่าเริ่มต้น ถ้าตั้งไว้ก่อนหน้านี้จะโดนทับ
