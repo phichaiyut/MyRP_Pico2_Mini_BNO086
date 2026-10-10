@@ -108,7 +108,7 @@ void resetAngles() {
   for (int i = 0; i < 10; i++) {
     resetYaw();
   }
-  current_degree = 0;
+  current_degree = angleRead();
   previous_errorG = 0;
   previous_errorGB = 0;
 }
