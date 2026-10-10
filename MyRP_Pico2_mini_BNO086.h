@@ -62,7 +62,7 @@ void RobotSetup() {
   loadCalibration_LOCAL();
   // ลองหา BNO08x ซ้ำได้ไม่เกิน 10 วินาที ถ้าไม่เจอให้ทำงานต่อโดยไม่มี gyro
 
-
+delay(3000);
   if (myIMU.begin(0x4A, Wire, -1, -1) == false) {
     Serial.println("BNO08x not detected at default I2C address. Check your jumpers and the hookup guide. Freezing...");
     while (1) {
@@ -72,7 +72,7 @@ void RobotSetup() {
   }
   Serial.println("BNO08x found!");
 
-  myIMU.enableRotationVector(5);  //
+  myIMU.enableRotationVector(50);  //
   resetYaw();
   // ตั้งความเร็ว I2C หลังสุด เพราะ bat.begin()/bno08xBegin() เรียก Wire.begin() ซ้ำข้างใน
   // ซึ่งจะรีเซ็ตความเร็วบัสกลับเป็นค่าเริ่มต้น ถ้าตั้งไว้ก่อนหน้านี้จะโดนทับ
@@ -87,19 +87,22 @@ int ADC_i2c() {
   long ADC01 = 0;
   int adc_01;
 
-  // อ่านจาก Wire (I2C0)
   Wire.requestFrom(MCP3421_ADDR, 4);
   if (Wire.available() == 4) {
     byte b1 = Wire.read();
     byte b2 = Wire.read();
     byte b3 = Wire.read();
-    Wire.read();  // ไบต์ config ของ MCP3421 อ่านทิ้งเพื่อเคลียร์บัฟเฟอร์ ไม่ได้ใช้ค่า
+    Wire.read(); 
 
     ADC01 = ((long)b1 << 16) | ((long)b2 << 8) | b3;
-    if (b1 & 0x80) ADC01 |= 0xFF000000;  // sign-extend
+    if (b1 & 0x80) ADC01 |= 0xFF000000;  
+    
+    adc_01 = map(ADC01, 524048, 282, 4000, 0);
+    return adc_01;
   }
-  adc_01 = map(ADC01, 524048, 282, 4000, 0);
-  return adc_01;
+  
+  // คืนค่า 9999 หากไม่พบเซนเซอร์ เพื่อป้องกันไม่ให้เข้าเงื่อนไข < 2500
+  return 9999; 
 }
 
 // ==================== sw() - เมนู Calibration + แสดงเซนเซอร์ ====================

@@ -90,7 +90,6 @@ void Motor(int left, int right) {
 
   analogWrite(PWMA, pwmL);
   analogWrite(PWMB, pwmR);
-  delayMicroseconds(50);  // ป้องกันเรียก Motor() รัวเกินไป
 }
 
 void Move(int l, int r, int t) {

@@ -1196,9 +1196,6 @@ void TrackSelectF(int spd, char x) {
         Motor(tctL, tctR);
         ReadCalibrateF();
         if (F[0] < Ref && F[7] < Ref) {
-          Motor(-tctL, -tctR);
-          delay(break_ff);
-          MotorStop();
           BZoff();
           break;
         }
@@ -1219,9 +1216,6 @@ void TrackSelectF(int spd, char x) {
         Motor(tctL, tctR);
         ReadCalibrateF();
         if (F[0] < Ref && F[7] < Ref) {
-          Motor(-tctL, -tctR);
-          delay(break_ff);
-          MotorStop();
           BZoff();
           break;
         }
@@ -1241,9 +1235,6 @@ void TrackSelectF(int spd, char x) {
         Motor(tctL, tctR);
         ReadCalibrateF();
         if (F[0] < Ref && F[7] < Ref) {
-          Motor(-tctL, -tctR);
-          delay(break_ff);
-          MotorStop();
           BZoff();
           break;
         }
@@ -1264,9 +1255,6 @@ void TrackSelectF(int spd, char x) {
         Motor(tctL, tctR);
         ReadCalibrateF();
         if (F[0] < Ref && F[7] < Ref) {
-          Motor(-tctL, -tctR);
-          delay(break_ff);
-          MotorStop();
           BZoff();
           break;
         }
@@ -1476,9 +1464,6 @@ void TrackSelectB(int spd, char x) {
         Motor(-bctL, -bctR);
         ReadCalibrateB();
           if (B[0] < Ref && B[7] < Ref) {
-          Motor(bctL, bctR);
-          delay(break_bf);
-          MotorStop();
           break;
         }
       }
@@ -1498,9 +1483,6 @@ void TrackSelectB(int spd, char x) {
         Motor(-bctL, -bctR);
         ReadCalibrateB();
         if (B[0] < Ref && B[7] < Ref) {
-          Motor(bctL, bctR);
-          delay(break_bf);
-          MotorStop();
           BZoff();
           break;
         }
@@ -1540,9 +1522,6 @@ void TrackSelectB(int spd, char x) {
         Motor(-bctL, -bctR);
         ReadCalibrateB();
         if (B[0] < Ref && B[7] < Ref) {
-          Motor(bctL, bctR);
-          delay(break_bf);
-          MotorStop();
           BZoff();
           break;
         }
@@ -1769,7 +1748,7 @@ void ffr(int Speed, char select) {
   while (1) {
     PIDF(LeftBaseSpeed, RightBaseSpeed, PID_KP_Front, PID_KD_Front);
     ReadCalibrateF();
-    if (F[7] > Ref || (F[1] < Ref && F[2] < Ref && F[3] < Ref && F[4] < Ref && F[5] < Ref && F[6] < Ref)) break;
+    if (F[7] > Ref ) break;
   }
   TrackSelectF(Speed, select);
 }
@@ -1780,7 +1759,7 @@ void ffr7(int Speed, char select) {
   while (1) {
     PIDF(LeftBaseSpeed, RightBaseSpeed, PID_KP_Front, PID_KD_Front);
     ReadCalibrateF();
-    if (F[7] > Ref || (F[1] < Ref && F[2] < Ref && F[3] < Ref && F[4] < Ref && F[5] < Ref && F[6] < Ref)) break;
+    if (F[7] > Ref) break;
   }
   TrackSelectF(Speed, select);
 }
@@ -1915,7 +1894,7 @@ void ffnum(int Speed, char select, int numm) {
   while (1) {
     PIDF(LeftBaseSpeed, RightBaseSpeed, PID_KP_Front, PID_KD_Front);
     ReadCalibrateF();
-    if (F[numm] > Ref || (F[1] < Ref && F[2] < Ref && F[3] < Ref && F[4] < Ref && F[5] < Ref && F[6] < Ref)) break;
+    if (F[numm] > Ref) break;
   }
   TrackSelectF(Speed, select);
 }
@@ -2078,7 +2057,6 @@ void balancef(int Counter) {
       if (F[0] > Ref && F[7] > Ref) { MotorStop(); break; }
     }
     MotorStop();
-    delay(50);
   }
   SetRobotAngle();
 }
@@ -2110,7 +2088,6 @@ void balanceb(int Counter) {
       if (B[0] > Ref && B[7] > Ref) { MotorStop(); break; }
     }
     MotorStop();
-    delay(50);
   }
   SetRobotAngle();
 }
@@ -2143,7 +2120,6 @@ void balancefc(int Counter) {
       if (C[1] > RefC && C[0] > RefC) { MotorStop(); break; }
     }
     MotorStop();
-    delay(50);
   }
   SetRobotAngle();
 }
@@ -2172,7 +2148,6 @@ void balancebc(int Counter) {
       if (C[1] > RefC && C[0] > RefC) { MotorStop(); break; }
     }
     MotorStop();
-    delay(50);
   }
   SetRobotAngle();
 }
@@ -2196,6 +2171,7 @@ void set_f(int num) {
         Motor(15, 15);
       } else {
         Motor(-1, -1);
+        MotorStop();
         break;
       }
     }
@@ -2221,6 +2197,7 @@ void set_b(int num) {
         Motor(-15, -15);
       } else {
         Motor(1, 1);
+        MotorStop();
         break;
       }
     }
@@ -2246,6 +2223,7 @@ void set_fc(int num) {
         Motor(15, 15);
       } else {
         Motor(-1, -1);
+        MotorStop();
         break;
       }
     }
@@ -2271,6 +2249,7 @@ void set_bc(int num) {
         Motor(-15, -15);
       } else {
         Motor(1, 1);
+        MotorStop();
         break;
       }
     }

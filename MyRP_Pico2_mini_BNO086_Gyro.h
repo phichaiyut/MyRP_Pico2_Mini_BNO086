@@ -105,10 +105,10 @@ void setAngleOffset() {
 }
 
 void resetAngles() {
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 10; i++) {
     resetYaw();
   }
-  current_degree = angleRead();
+  current_degree = 0;
   previous_errorG = 0;
   previous_errorGB = 0;
 }
@@ -238,7 +238,6 @@ void spindegree(int Speed, int relative_degree) {
   float stop_threshold = gyro_StopThr_Spin;
   float previous_error = 0;
   float target_degree = gyroZ() + relative_degree;
-// float target_degree =  relative_degree + gyroZ(); // แก้ไข: relative_degree เป็นมุมที่ต้องการหมุนเพิ่มจากมุมปัจจุบัน
   if (target_degree > 180.0f) target_degree -= 360.0f;
   if (target_degree < -180.0f) target_degree += 360.0f;
   current_degree = target_degree;
@@ -322,7 +321,6 @@ void turndegreeb(int Speed, int relative_degree) {
   float stop_threshold = gyro_StopThr_Turn;
   float previous_error = 0;
   float target_degree = gyroZ() + relative_degree;
-
   if (target_degree > 180.0f) target_degree -= 360.0f;
   if (target_degree < -180.0f) target_degree += 360.0f;
   current_degree = target_degree;
