@@ -1080,7 +1080,6 @@ void TrackSelectF(int spd, char x) {
     case 's':
       Motor(-spd, -spd);
       delay(delay_break_f);
-      Move(-1, -1, 1);
       MotorStop();
       // MotorShot();  // active short-brake (back-EMF) กันไถลจากแรงเฉื่อยที่ความเร็วสูง
       break;
@@ -1092,7 +1091,6 @@ void TrackSelectF(int spd, char x) {
         if (F[0] > Ref || F[7] > Ref) {
           Motor(-tctL, -tctR);
           delay(tct_delay_break);
-          Move(-1, -1, 1);
           MotorStop();
           // MotorShot();  // active short-brake (back-EMF) กันไถลจากแรงเฉื่อยที่ความเร็วสูง
           break;
