@@ -1,12 +1,31 @@
 #ifndef MYRP_PICO2_MINI_H
 #define MYRP_PICO2_MINI_H
 
+/*
+ * MyRP_Pico2_mini_BNO086.h
+ * ไฟล์หลักของไลบรารี: รวมทุกโมดูล + RobotSetup() + เมนูปุ่ม sw()
+ *
+ * สารบัญ:
+ *   [1] รวมโมดูลทั้งหมด (include)
+ *   [2] เริ่มต้นระบบ (RobotSetup)
+ *   [3] อ่าน ADC ภายนอก (MCP3421)
+ *   [4] เมนูปุ่ม sw() — คาลิเบรต / แสดงค่าเซนเซอร์
+ */
+
+// ======================================================================
+// [1] รวมโมดูลทั้งหมด (include)
+// ======================================================================
+
 #include "MyRP_Pico2_mini_BNO086_Buzzer.h"
 #include "MyRP_Pico2_mini_BNO086_Sensor.h"
 #include "MyRP_Pico2_mini_BNO086_Motor.h"
 #include "MyRP_Pico2_mini_BNO086_PID.h"
 #include "MyRP_Pico2_mini_BNO086_Servo.h"
 #include "MyRP_Pico2_mini_BNO086_Gyro.h"
+
+// ======================================================================
+// [2] เริ่มต้นระบบ (RobotSetup)
+// ======================================================================
 
 void RobotSetup() {
   Serial.begin(115200);
@@ -60,19 +79,30 @@ void RobotSetup() {
 
   loadCalibration();
   loadCalibration_LOCAL();
-  // ลองหา BNO08x ซ้ำได้ไม่เกิน 10 วินาที ถ้าไม่เจอให้ทำงานต่อโดยไม่มี gyro
-
-delay(3000);
-  if (myIMU.begin(0x4A, Wire, -1, -1) == false) {
-    Serial.println("BNO08x not detected at default I2C address. Check your jumpers and the hookup guide. Freezing...");
-    while (1) {
-      Beep(500); delay(200); Beep(500); delay(200); Beep(500); delay(200); Beep(500);
+  // ลองหา BNO08x ซ้ำได้ไม่เกิน 5 วินาที ถ้าไม่เจอให้ทำงานต่อโดยไม่มี gyro
+  bool imuFound = false;
+  unsigned long imuStart = millis();
+  while (millis() - imuStart < 5000) {
+    if (myIMU.begin(0x4A, Wire, -1, -1)) {
+      imuFound = true;
       break;
     }
+    delay(100);
   }
-  Serial.println("BNO08x found!");
+  if (!imuFound) {
+    Serial.println("BNO08x not detected at default I2C address. Check your jumpers and the hookup guide.");
+    Beep(500);
+    delay(200);
+    Beep(500);
+    delay(200);
+    Beep(500);
+    delay(200);
+    Beep(500);
+  } else {
+    Serial.println("BNO08x found!");
+  }
 
-  myIMU.enableRotationVector(5);  //
+  myIMU.enableRotationVector(5);  // ตั้งค่าให้ BNO08x ส่งข้อมูล rotation vector ทุก 5ms (200Hz)
   resetYaw();
   // ตั้งความเร็ว I2C หลังสุด เพราะ bat.begin()/bno08xBegin() เรียก Wire.begin() ซ้ำข้างใน
   // ซึ่งจะรีเซ็ตความเร็วบัสกลับเป็นค่าเริ่มต้น ถ้าตั้งไว้ก่อนหน้านี้จะโดนทับ
@@ -81,6 +111,10 @@ delay(3000);
   blink(3);
   Serial.println("MyRP_Pico2 Class Ready for Competition!");
 }
+
+// ======================================================================
+// [3] อ่าน ADC ภายนอก (MCP3421)
+// ======================================================================
 
 // อ่านค่าจาก ADC ภายนอก (MCP3421) ผ่าน I2C — ใช้ตรวจแบตเตอรี่ในเมนู sw()
 int ADC_i2c() {
@@ -92,27 +126,30 @@ int ADC_i2c() {
     byte b1 = Wire.read();
     byte b2 = Wire.read();
     byte b3 = Wire.read();
-    Wire.read(); 
+    Wire.read();
 
     ADC01 = ((long)b1 << 16) | ((long)b2 << 8) | b3;
-    if (b1 & 0x80) ADC01 |= 0xFF000000;  
-    
+    if (b1 & 0x80) ADC01 |= 0xFF000000;
+
     adc_01 = map(ADC01, 524048, 282, 4000, 0);
     return adc_01;
   }
-  
+
   // คืนค่า 9999 หากไม่พบเซนเซอร์ เพื่อป้องกันไม่ให้เข้าเงื่อนไข < 2500
-  return 9999; 
+  return 9999;
 }
 
-// ==================== sw() - เมนู Calibration + แสดงเซนเซอร์ ====================
+// ======================================================================
+// [4] เมนูปุ่ม sw() — คาลิเบรต / แสดงค่าเซนเซอร์
+// ======================================================================
+
 void sw() {
   MotorStop();
-  tone(9, 2000, 100);   // โด
+  tone(9, 2000, 100);  // โด
   delay(100);
-  tone(9, 2400, 100);   // เร
+  tone(9, 2400, 100);  // เร
   delay(100);
-  tone(9, 3000, 160);   // มี
+  tone(9, 3000, 160);  // มี
   delay(500);
   tone(9, 3000, 60);
   delay(80);
@@ -175,7 +212,8 @@ void sw() {
       delay(100);
       digitalWrite(LED_BUILTIN, LOW);
       delay(100);
-      while (digitalRead(2) == LOW);  // รอปล่อยปุ่ม
+      while (digitalRead(2) == LOW)
+        ;          // รอปล่อยปุ่ม
       delay(400);  // ป้องกันการเด้งของปุ่ม
     }
 
@@ -229,7 +267,8 @@ void sw() {
           delay(100);
           digitalWrite(LED_BUILTIN, LOW);
           delay(100);
-          while (digitalRead(2) == LOW);  // รอปล่อยปุ่ม
+          while (digitalRead(2) == LOW)
+            ;          // รอปล่อยปุ่ม
           delay(400);  // ป้องกันการเด้งของปุ่ม
         }
       }
@@ -253,4 +292,4 @@ void sw() {
   delay(500);
 }
 
-#endif // MYRP_PICO2_MINI_H
+#endif  // MYRP_PICO2_MINI_H

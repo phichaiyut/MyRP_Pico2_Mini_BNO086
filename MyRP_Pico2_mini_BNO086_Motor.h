@@ -1,7 +1,22 @@
 #ifndef MYRP_PICO2_MINI_MOTOR_H
 #define MYRP_PICO2_MINI_MOTOR_H
 
+/*
+ * MyRP_Pico2_mini_BNO086_Motor.h
+ * ขับมอเตอร์ ชดเชยแบตเตอรี่ และตารางความเร็ว / PID ตามความเร็ว
+ *
+ * สารบัญ:
+ *   [1] ขามอเตอร์ / ชดเชยแรงดันแบตเตอรี่
+ *   [2] ขับมอเตอร์ (Motor / Move / MotorStop / MotorShot)
+ *   [3] ตารางความเร็ว / PID / เวลาเบรก ตามช่วงความเร็ว
+ *   [4] เคลื่อนที่พื้นฐาน (fd, bk, sl, sr, tl, tr)
+ */
+
 #include "BatteryMonitor.h"
+
+// ======================================================================
+// [1] ขามอเตอร์ / ชดเชยแรงดันแบตเตอรี่
+// ======================================================================
 
 #define PWMA 19
 #define AIN1 20
@@ -17,8 +32,12 @@ bool DC_Motors = true;
 
 BatteryMonitor bat;
 
-inline void updateBattery() { bat.update(); }
-inline float getBatteryVoltage() { return bat.getVoltage(); }
+inline void updateBattery() {
+  bat.update();
+}
+inline float getBatteryVoltage() {
+  return bat.getVoltage();
+}
 
 float scale = 1.0f;
 
@@ -47,6 +66,10 @@ void bat_control() {
   scale = constrain(scale, 0.95f, 1.05f);
 }
 
+// ======================================================================
+// [2] ขับมอเตอร์ (Motor / Move / MotorStop / MotorShot)
+// ======================================================================
+
 void Motor(int left, int right) {
   updateBattery();
   static unsigned long lastBatUpdate = 0;
@@ -59,7 +82,7 @@ void Motor(int left, int right) {
   int pwmL = map(abs(left), 0, 100, 0, 4095);
   int pwmR = map(abs(right), 0, 100, 0, 4095);
 
-  pwmL = constrain((int)(pwmL * scale), 0, 3850);   // Safety limit
+  pwmL = constrain((int)(pwmL * scale), 0, 3850);  // Safety limit
   pwmR = constrain((int)(pwmR * scale), 0, 3850);
 
   // LEFT MOTOR
@@ -131,6 +154,10 @@ void MotorShot(int t = 3, int power = 90) {
   MotorStop();
 }
 
+// ======================================================================
+// [3] ตารางความเร็ว / PID / เวลาเบรก ตามช่วงความเร็ว
+// ======================================================================
+
 int BaseSpeed, LeftBaseSpeed, RightBaseSpeed, BackLeftBaseSpeed, BackRightBaseSpeed;
 float PID_KP_Front, PID_KD_Front;
 float PID_KP_Back, PID_KD_Back;
@@ -140,9 +167,8 @@ int L[10], R[10];
 int BL[10], BR[10];
 float KP[10], KD[10];
 float KP_Back[10], KD_Back[10];
-int delay_break_f_table[10] = {30, 30, 30, 30, 30, 30, 30, 30, 30, 30};
-int delay_break_b_table[10] = {30, 30, 30, 30, 30, 30, 30, 30, 30, 30};
-
+int delay_break_f_table[10] = { 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 };
+int delay_break_b_table[10] = { 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 };
 
 // ดัชนีตารางความเร็ว (ใช้กับ setBalanceSpeed/Set_KP_KD ฯลฯ)
 #define SPD_10 0
@@ -191,13 +217,17 @@ void InitialSpeed() {
   RightBaseSpeed = BaseSpeed - R[idx];
   BackLeftBaseSpeed = BaseSpeed - BL[idx];
   BackRightBaseSpeed = BaseSpeed - BR[idx];
-  PID_KP_Front = KP[idx];       // forward PID
+  PID_KP_Front = KP[idx];  // forward PID
   PID_KD_Front = KD[idx];
-  PID_KP_Back = KP_Back[idx];   // backward PID
+  PID_KP_Back = KP_Back[idx];  // backward PID
   PID_KD_Back = KD_Back[idx];
   delay_break_f = delay_break_f_table[idx];
   delay_break_b = delay_break_b_table[idx];
 }
+
+// ======================================================================
+// [4] เคลื่อนที่พื้นฐาน (fd, bk, sl, sr, tl, tr)
+// ======================================================================
 
 void fd(int Speed, int time_ms) {
   BaseSpeed = Speed;
@@ -235,4 +265,4 @@ void tr(int Speed, int time_ms) {
   MotorStop(0);
 }
 
-#endif // MYRP_PICO2_MINI_MOTOR_H
+#endif  // MYRP_PICO2_MINI_MOTOR_H

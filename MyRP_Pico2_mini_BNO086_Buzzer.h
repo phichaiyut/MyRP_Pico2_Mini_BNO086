@@ -1,8 +1,25 @@
 #ifndef MYRP_PICO2_MINI_BUZZER_H
 #define MYRP_PICO2_MINI_BUZZER_H
 
+/*
+ * MyRP_Pico2_mini_BNO086_Buzzer.h
+ * เสียง buzzer และไฟกระพริบ
+ *
+ * สารบัญ:
+ *   [1] ขาและความถี่เสียง
+ *   [2] ฟังก์ชันเสียง / ไฟ (Beep, BZon, BZoff, blink)
+ */
+
+// ======================================================================
+// [1] ขาและความถี่เสียง
+// ======================================================================
+
 #define ToNe 3000
 #define buzzer_pin 9
+
+// ======================================================================
+// [2] ฟังก์ชันเสียง / ไฟ (Beep, BZon, BZoff, blink)
+// ======================================================================
 
 void Beep(int delayb) {
   tone(buzzer_pin, ToNe);
@@ -36,9 +53,11 @@ void BeepScanner() {
 
 void blink(int times) {
   for (int i = 0; i < times; i++) {
-    digitalWrite(LED_BUILTIN, HIGH); delay(150);
-    digitalWrite(LED_BUILTIN, LOW);  delay(150);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(150);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(150);
   }
 }
 
-#endif // MYRP_PICO2_MINI_BUZZER_H
+#endif  // MYRP_PICO2_MINI_BUZZER_H

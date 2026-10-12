@@ -1,7 +1,23 @@
 #ifndef MYRP_PICO2_MINI_SERVO_H
 #define MYRP_PICO2_MINI_SERVO_H
 
+/*
+ * MyRP_Pico2_mini_BNO086_Servo.h
+ * เซอร์โวและแขนกล
+ *
+ * สารบัญ:
+ *   [1] ขาและตัวแปรเซอร์โว
+ *   [2] ตั้งค่า trim
+ *   [3] สั่งเซอร์โวทีละตัว
+ *   [4] ควบคุมเซอร์โวผ่าน Serial
+ *   [5] สั่งแขนหลายตัวพร้อมกัน (Servo / armupdown / arm_left_right)
+ */
+
 #include <Servo.h>
+
+// ======================================================================
+// [1] ขาและตัวแปรเซอร์โว
+// ======================================================================
 
 // กำหนดขาเซอร์โว
 #define Servo0 0
@@ -21,6 +37,10 @@ int Servo_tim0 = 0;
 int Servo_tim1 = 0;
 int Servo_tim28 = 0;
 
+// ======================================================================
+// [2] ตั้งค่า trim
+// ======================================================================
+
 // ฟังก์ชันตั้งค่า trim
 void S0_trim(int _s0) {
   Servo_tim0 = _s0;
@@ -37,6 +57,10 @@ void S10_trim(int _s10) {
 void S28_trim(int _s28) {
   Servo_tim28 = _s28;
 }
+
+// ======================================================================
+// [3] สั่งเซอร์โวทีละตัว
+// ======================================================================
 
 // ฟังก์ชันควบคุมเซอร์โว
 void Servo(int servo, int angle) {
@@ -55,10 +79,14 @@ void Servo(int servo, int angle) {
   }
 }
 
+// ======================================================================
+// [4] ควบคุมเซอร์โวผ่าน Serial
+// ======================================================================
+
 int currentServo = -1;
 int currentAngle = 90;
 
-int pos[3] ={90,90,90};
+int pos[3] = { 90, 90, 90 };
 
 void SerialServoControl() {
   Serial.println("Serial Servo Control Mode");
@@ -100,21 +128,25 @@ void SerialServoControl() {
     if (currentServo != -1) {
       Servo(currentServo, currentAngle);
     }
-    delay(50); // ~50Hz เหมาะกับ servo
+    delay(50);  // ~50Hz เหมาะกับ servo
   }
 }
 
+// ======================================================================
+// [5] สั่งแขนหลายตัวพร้อมกัน (Servo / armupdown / arm_left_right)
+// ======================================================================
+
 void Servo(int x, int y, int z) {
   MotorStop();
-  int a[] = {x, y, z}, s[] = {Servo1, Servo10, Servo0};
+  int a[] = { x, y, z }, s[] = { Servo1, Servo10, Servo0 };
   for (int i = 0; i < 3; i++) Servo(s[i], pos[i] = a[i]);
   delay(20);
 }
 
 void Servo(int target1, int target2, int target3, int spd) {
   MotorStop();
-  int target[3] = {target1, target2, target3};
-  int sv[3] = {Servo1, Servo10, Servo0};
+  int target[3] = { target1, target2, target3 };
+  int sv[3] = { Servo1, Servo10, Servo0 };
 
   while (pos[0] != target[0] || pos[1] != target[1] || pos[2] != target[2]) {
     for (int i = 0; i < 3; i++) {
@@ -141,7 +173,7 @@ void armupdown(int x) {
 
 void arm_left_right(int l, int r) {
   Servo(10, pos[1] = l);
-  Servo(0,  pos[2] = r);
+  Servo(0, pos[2] = r);
 }
 
-#endif // MYRP_PICO2_MINI_SERVO_H
+#endif  // MYRP_PICO2_MINI_SERVO_H
