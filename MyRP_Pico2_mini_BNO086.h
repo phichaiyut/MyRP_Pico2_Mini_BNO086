@@ -79,10 +79,10 @@ void RobotSetup() {
 
   loadCalibration();
   loadCalibration_LOCAL();
-  // ลองหา BNO08x ซ้ำได้ไม่เกิน 5 วินาที ถ้าไม่เจอให้ทำงานต่อโดยไม่มี gyro
+  // ลองหา BNO08x ซ้ำได้ไม่เกิน 10 วินาที ถ้าไม่เจอให้ทำงานต่อโดยไม่มี gyro
   bool imuFound = false;
   unsigned long imuStart = millis();
-  while (millis() - imuStart < 5000) {
+  while (millis() - imuStart < 10000) {
     if (myIMU.begin(0x4A, Wire, -1, -1)) {
       imuFound = true;
       break;
