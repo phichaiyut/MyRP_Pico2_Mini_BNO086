@@ -40,9 +40,9 @@ int sensorMaxA[8], sensorMinA[8];
 int sensorMaxB[8], sensorMinB[8];
 int sensorMaxC[2], sensorMinC[2];
 
-uint8_t F_PIN[NUM_SENSORS] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-uint8_t B_PIN[NUM_SENSORS] = { 7, 6, 5, 4, 3, 2, 1, 0 };
-uint8_t C_PIN[2] = { 26, 27 };
+const uint8_t F_PIN[NUM_SENSORS] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+const uint8_t B_PIN[NUM_SENSORS] = { 7, 6, 5, 4, 3, 2, 1, 0 };
+const uint8_t C_PIN[2] = { 26, 27 };
 
 // ใช้เฉพาะฟังก์ชันที่มี _LOCAL (เก็บ/โหลด EEPROM flash ของ Pico 2 ตัวนี้เอง)
 int minValueF[NUM_SENSORS], maxValueF[NUM_SENSORS];
@@ -148,26 +148,23 @@ void readEEPROM_LOCAL(unsigned int eeAddress, byte *buffer, int dataLength) {
 // [5] คาลิเบรตเซนเซอร์ (calibrateA / B / C)
 // ======================================================================
 
+// หา max/min ไปพร้อมกับการอ่าน ไม่ต้องเก็บทุก sample ไว้ก่อน
+// (เดิมใช้ int values[8][1000] = 32 KB บน stack เสี่ยง stack overflow ทับตัวแปรอื่น)
 void calibrateA() {
   const int samples = 1000;
-  int values[8][1000];
 
   Serial.println("กำลัง calibrate Sensor A (Line Front)...");
 
+  for (int i = 0; i < 8; i++) {
+    sensorMaxA[i] = 0;
+    sensorMinA[i] = 1023;  // MCP3008 = 10 บิต
+  }
   for (int s = 0; s < samples; s++) {
     for (int i = 0; i < 8; i++) {
-      values[i][s] = read_sensorA(i);
-      delay(1);
-    }
-  }
-
-  for (int i = 0; i < 8; i++) {
-    sensorMaxA[i] = values[i][0];
-    sensorMinA[i] = values[i][0];
-    for (int s = 1; s < samples; s++) {
-      int v = values[i][s];
+      int v = read_sensorA(i);
       if (v > sensorMaxA[i]) sensorMaxA[i] = v;
       if (v < sensorMinA[i]) sensorMinA[i] = v;
+      delay(1);
     }
   }
 
@@ -218,24 +215,19 @@ void saveCalibA_LOCAL() {
 
 void calibrateB() {
   const int samples = 1000;
-  int values[8][1000];
 
   Serial.println("กำลัง calibrate Sensor B (Line Back)...");
 
+  for (int i = 0; i < 8; i++) {
+    sensorMaxB[i] = 0;
+    sensorMinB[i] = 1023;  // MCP3008 = 10 บิต
+  }
   for (int s = 0; s < samples; s++) {
     for (int i = 0; i < 8; i++) {
-      values[i][s] = read_sensorB(i);
-      delay(1);
-    }
-  }
-
-  for (int i = 0; i < 8; i++) {
-    sensorMaxB[i] = values[i][0];
-    sensorMinB[i] = values[i][0];
-    for (int s = 1; s < samples; s++) {
-      int v = values[i][s];
+      int v = read_sensorB(i);
       if (v > sensorMaxB[i]) sensorMaxB[i] = v;
       if (v < sensorMinB[i]) sensorMinB[i] = v;
+      delay(1);
     }
   }
 
@@ -285,26 +277,22 @@ void saveCalibB_LOCAL() {
 
 void calibrateC() {
   const int samples = 1000;
-  const int PIN_C0 = 26;
-  const int PIN_C1 = 27;
-  int values[2][1000];
-
   Serial.println("กำลัง calibrate Sensor C (Side Sensors)...");
 
+  for (int i = 0; i < 2; i++) {
+    sensorMaxC[i] = 0;
+    sensorMinC[i] = 4095;  // ADC ในบอร์ด = 12 บิต
+  }
   for (int s = 0; s < samples; s++) {
-    values[0][s] = analogRead(PIN_C0);
-    values[1][s] = analogRead(PIN_C1);
+    for (int i = 0; i < 2; i++) {
+      int v = analogRead(C_PIN[i]);
+      if (v > sensorMaxC[i]) sensorMaxC[i] = v;
+      if (v < sensorMinC[i]) sensorMinC[i] = v;
+    }
     delay(5);
   }
 
   for (int i = 0; i < 2; i++) {
-    sensorMaxC[i] = 0;
-    sensorMinC[i] = 4095;
-    for (int s = 0; s < samples; s++) {
-      uint16_t v = values[i][s];
-      if (v > sensorMaxC[i]) sensorMaxC[i] = v;
-      if (v < sensorMinC[i]) sensorMinC[i] = v;
-    }
     sensorMaxC[i] = constrain(sensorMaxC[i], 0, 4000);
     sensorMinC[i] = constrain(sensorMinC[i], 0, 4000);
   }

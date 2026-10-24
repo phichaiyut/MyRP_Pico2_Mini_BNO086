@@ -56,24 +56,25 @@
 // SetTurnSpeed(50);                        // ความเร็วหมุน 'l' 'r'
 // TurnSpeedLeft(L, R, ms);                 TurnSpeedRight(L, R, ms);         // 'q' 'e'  TurnLeft / TurnRight
 // SetSensorTurnLeftRight(l, r);            // เซนเซอร์หน้าที่ใช้หยุด TurnLeft (F[0..l]) / TurnRight (F[7..r])
+// SetSensorTurnLeftRightB(l, r);           // เซนเซอร์หลังที่ใช้หยุด TurnLeft_B (B[7..l]) / TurnRight_B (B[0..r])
 // TurnBackSpeedLeft(L, R, ms);             TurnBackSpeedRight(L, R, ms);     // TurnLeft_B / TurnRight_B
 // TurnSpeedLeftBackF(L, R, ms);            TurnSpeedRightBackF(L, R, ms);    // TurnLeftBackF / TurnRightBackF
 // TurnSpeedLeftBackB(L, R, ms);            TurnSpeedRightBackB(L, R, ms);    // TurnLeftBackB / TurnRightBackB
 //
 // --- โหมดจำกัดความเร็วล้อ ---
-// ModeSpdPID(mode, max, min);              SetPIDDeadBand(db);               // PID เส้น
+// ModeSpdPID(mode, max, min);                                                // PID เส้น
 // ModeSpdGyro(mode, max, min);             ModeSpdGyro(modeF, modeB, max, min);  // Gyro (แยกหน้า/หลังได้)
 //     mode 0 = 0..max   1 = min..max   2 = -Speed..Speed   3 = ..max   4 = 0..Speed (ไม่ถอยล้อ)
 //
 // --- PID ไจโร ---
-// SetGyroTurn(kp, kd, maxSpd, minSpd, smallAngle, stopThr);   // เลี้ยวล้อเดียว (turndegree / turndegreeb)
+// SetGyroTurn(kp, kd, maxSpd, minSpd, smallAngle, stopThr);   // เลี้ยวล้อเดียวเดินหน้า (turndegree)
+// SetGyroTurnB(kp, kd, maxSpd, minSpd, smallAngle, stopThr);  // เลี้ยวล้อเดียวถอยหลัง (turndegreeb / turndirectionb)
 // SetGyroSpin(kp, kd, maxSpd, minSpd, smallAngle, stopThr);   // หมุนอยู่กับที่ (spindegree)
 // SetGyroRun(kp, kd);                      SetGyroRunB(kp, kd);              // วิ่งตรง RunG / RunGB
 //
 // --- ตำแหน่งเส้น (0-5000, กลาง = 2500) ---
 // set_position_line(2500);                 // ตำแหน่งปกติ
 // set_position_line_l(500);                set_position_line_r(4500);        // วิ่งโค้ง cl / cr
-// set_slow_kp_kd(kpf, kdf, kpb, kdb);      // PID ช้าตอนเข้ากลาง
 //
 // --- เซนเซอร์วัดระยะ ---
 // SetAnalogDistance(28);                   // ขาอนาล็อก A0-A3 (26-29)
@@ -113,11 +114,12 @@
    ========================================================================== */
 // ff(speed, 'p');                          // วิ่งจนเจอแยกใดก็ได้ (F0 หรือ F7)
 // ffc(speed, 'p');      ffc2(speed, 'p');  // เจอแยกตัด (F0 + F7) | ffc2 ยอมรับแยกกว้าง/แคบ
-// ffl(speed, 'p');      ffl0(speed, 'p');  // เจอแยกซ้าย (F0)
+// ffl(speed, 'p');                         // เจอแยกซ้าย (F0)
 // ffl2(speed, 'p');                        // เจอแยกซ้ายเต็ม (F0-F4)
-// ffr(speed, 'p');      ffr7(speed, 'p');  // เจอแยกขวา (F7)
+// ffr(speed, 'p');                         // เจอแยกขวา (F7)
 // ffr2(speed, 'p');                        // เจอแยกขวาเต็ม (F3-F7)
 // ffnum(speed, 'p', n); ffn(speed, 'p', n);    // เจอเส้นที่เซนเซอร์ F[n] (0-7)
+// ffsum(speed, 'p', sum);                      // ผลรวม F[0]..F[7] >= sum (0-8000)
 // ffwhite(speed, 'p');  ffw(speed, 'p');       // วิ่งจนไม่เจอเส้นเลย
 // ffblack(speed, 'p');  ffb(speed, 'p');       // วิ่งตรง (ไม่ PID) จนเจอเส้น
 // ffblack(L, R, 'p');   ffb(L, R, 'p');
@@ -127,6 +129,20 @@
 // fft(speed, ms);       fft(speed, ms, 'p');                  // ชื่อย่อของ fftimer
 // ffcm(speed, cm);      ffcm(speed, cm, 'p');                 // วิ่งตามระยะทาง
 // lf(ms);                                  // PID อยู่กับที่ จัดตัวตรงเส้น
+//
+// --- กำหนด Kp / Kd เอง (ใส่ต่อจาก speed) ---
+// ใช้ได้กับ ff ffc ffc2 ffl ffl2 ffr ffr2 ffnum/ffn ffsum ffwhite/ffw ff_distance/ffd
+// และฝั่ง bb... ทุกตัวที่คู่กัน  (ffblack/ffb ไม่ใช้ PID จึงไม่มี)
+// ff(speed, kp, 'p');                      // กำหนด Kp อย่างเดียว (Kd ใช้ค่าจากตารางความเร็ว)
+// ff(speed, kp, kd, 'p');                  // กำหนดทั้ง Kp และ Kd
+// ffn(speed, kp, kd, 'p', n);              // ตัวที่มีพารามิเตอร์ต่อท้าย ใส่ Kp/Kd หลัง speed เหมือนกัน
+// ffd(speed, kp, 'p', dist);
+// fftimer(speed, kp, ms);       fftimer(speed, kp, kd, ms);       // ตามเวลา (ใส่ 'p' ท้ายสุดได้)
+// fftimer(speed, kp, ms, 'p');  fftimer(speed, kp, kd, ms, 'p');
+// ffcm(speed, kp, cm);          ffcm(speed, kp, kd, cm);          // ตามระยะทาง (cm เป็นจำนวนเต็ม)
+// ffcm(speed, kp, cm, 'p');     ffcm(speed, kp, kd, cm, 'p');
+// fft(speed, kp, [kd,] ms [, 'p']);                               // ชื่อย่อ ใช้แบบเดียวกับ fftimer
+// * ใส่ Kp เป็นทศนิยม เช่น 0.02  (ใส่ค่าติดลบ = ใช้ค่าจากตาราง)
 
 
 /* ==========================================================================
@@ -134,9 +150,10 @@
    ========================================================================== */
 // bb(speed, 'p');
 // bbc(speed, 'p');      bbc2(speed, 'p');
-// bbl(speed, 'p');      bbl0(speed, 'p');      bbl2(speed, 'p');
-// bbr(speed, 'p');      bbr7(speed, 'p');      bbr2(speed, 'p');
+// bbl(speed, 'p');      bbl2(speed, 'p');
+// bbr(speed, 'p');      bbr2(speed, 'p');
 // bbnum(speed, 'p', n); bbn(speed, 'p', n);
+// bbsum(speed, 'p', sum);                      // ผลรวม B[0]..B[7] >= sum (0-8000)
 // bbwhite(speed, 'p');  bbw(speed, 'p');
 // bbblack(speed, 'p');  bbb(speed, 'p');
 // bbblack(L, R, 'p');   bbb(L, R, 'p');
@@ -145,6 +162,9 @@
 // bbt(speed, ms);       bbt(speed, ms, 'p');
 // bbcm(speed, cm);      bbcm(speed, cm, 'p');
 // lb(ms);
+// bb(speed, kp, 'p');   bb(speed, kp, kd, 'p');   bbn(speed, kp, kd, 'p', n);   // กำหนด Kp / Kd เอง
+// bbtimer(speed, kp, [kd,] ms [, 'p']);    bbcm(speed, kp, [kd,] cm [, 'p']);
+// bbt(speed, kp, [kd,] ms [, 'p']);
 
 
 /* ==========================================================================
@@ -159,12 +179,17 @@
 // ffcmcl(speed, cm [, 'p']);        bbcmcl(speed, cm [, 'p']);
 // ffcmcr(speed, cm [, 'p']);        bbcmcr(speed, cm [, 'p']);
 //                                   ( [ ] = ใส่หรือไม่ใส่ก็ได้ )
+//
+// --- กำหนด Kp / Kd เอง (ใส่ต่อจาก speed) ---
+// ffcl(speed, kp, [kd,] 'p');                  bbcl / ffcr / bbcr ใช้แบบเดียวกัน
+// fftimercl(speed, kp, [kd,] ms [, 'p']);      ...timercr / bbtimercl / bbtimercr แบบเดียวกัน
+// ffcmcl(speed, kp, [kd,] cm [, 'p']);         ...cmcr / bbcmcl / bbcmcr แบบเดียวกัน (cm เป็นจำนวนเต็ม)
 
 
 /* ==========================================================================
    [7] เข้ากึ่งกลาง / ออกตัว / เข้าเส้นชัย
    ========================================================================== */
-// ToCenter();   ToCenterL();   ToCenterR();      // เดินหน้าเข้ากลาง (เซนเซอร์คู่กลาง)
+// ToCenter();                                  // เดินหน้าเข้ากลาง (เซนเซอร์คู่กลาง)
 // BackCenter();                                  // ถอยหลังเข้ากลาง
 // ToFront();    ToBack();                        // จัดตัวตรงเส้น หน้า / หลัง
 // gostart(speed);   gostart(L, R);               // ออกจากกล่องเริ่ม
@@ -179,8 +204,8 @@
    ========================================================================== */
 // spinl([speed]);      spinr([speed]);       // หมุนอยู่กับที่ไปเส้นถัดไป (เซนเซอร์หน้า)
 // spinl2([speed]);     spinr2([speed]);
-// spinl_B([speed]);    spinr_B([speed]);     // ใช้เซนเซอร์หลัง
-// spinl2_B([speed]);   spinr2_B([speed]);
+// spinlb([speed]);     spinrb([speed]);      // ใช้เซนเซอร์หลัง
+// spinl2b([speed]);    spinr2b([speed]);
 // TurnLeft();          TurnRight();          // เลี้ยวโค้ง เซนเซอร์หน้า
 // TurnLeft_B();        TurnRight_B();        // เลี้ยวโค้ง เซนเซอร์หลัง
 // TurnLeftBackF();     TurnRightBackF();     // เลี้ยวล้อเดียวถอยหลัง เช็คเซนเซอร์หน้า

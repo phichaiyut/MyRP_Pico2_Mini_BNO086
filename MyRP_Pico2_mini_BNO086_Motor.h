@@ -41,7 +41,7 @@ inline float getBatteryVoltage() {
 
 float scale = 1.0f;
 
-void set_Freq(String type) {
+void set_Freq(const String &type) {
   if (type == "Coreless_Motors" || type == "coreless") {
     DC_Motors = false;
     analogWriteFreq(20000);
@@ -57,7 +57,7 @@ void bat_control() {
   float voltage = getBatteryVoltage();
 
   if (voltage > 0.5f && voltage >= VMIN && voltage <= VMAX) {
-    scale = pow(VNOM / voltage, 0.95f);
+    scale = powf(VNOM / voltage, 0.95f);
   } else {
     scale = 1.0f;
   }
@@ -207,6 +207,10 @@ void SetDelayBreak(int ch, int delay_f, int delay_b) {
   delay_break_b_table[ch] = delay_b;
 }
 
+int LastError_F, LastError_B;            // ค่า error ก่อนหน้าของ PIDF / PIDB
+int LastError_F_none, LastError_B_none;  // ค่า error ก่อนหน้าของ PID แบบ _none
+void resetGyroRunError();                // อยู่ใน Gyro.h: รีเซ็ต previous_errorG / previous_errorGB
+
 // เลือกชุดค่าความเร็ว/PID ตามช่วงของ BaseSpeed (ปัดขึ้นเป็นสิบ เช่น 35 ใช้ชุดของ 40)
 // เดิมเป็น if/else 10 ชุดที่โครงสร้างเหมือนกันทุกอัน ต่างแค่ index ตาราง จึงรวมเป็นสูตรเดียว:
 // ดัชนี 0-9 คำนวณจาก (BaseSpeed - 1) / 10 แล้วจำกัดไม่ให้เกิน SPD_100 (ผลลัพธ์เหมือนเดิมทุกกรณี)
@@ -223,6 +227,11 @@ void InitialSpeed() {
   PID_KD_Back = KD_Back[idx];
   delay_break_f = delay_break_f_table[idx];
   delay_break_b = delay_break_b_table[idx];
+  LastError_F = 0;  // รีเซ็ต D-term ไม่ให้ค้างจากคำสั่งก่อนหน้า
+  LastError_B = 0;
+  LastError_F_none = 0;
+  LastError_B_none = 0;
+  resetGyroRunError();  // previous_errorG / previous_errorGB = error ปัจจุบัน
 }
 
 // ======================================================================
