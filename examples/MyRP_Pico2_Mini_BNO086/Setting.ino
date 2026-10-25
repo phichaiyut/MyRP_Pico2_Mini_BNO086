@@ -20,6 +20,10 @@ void Setting() {
   set_brake_fc(10, 30);  // การเบรค ตอนเดินหน้า
   set_brake_bc(10, 30);  // การเบรค ตอนถอยหลัง
 
+  /******************** LINE ALIGN (lf / lb) ********************/
+  set_pid_lf(0.015, 0.10);  // PID อยู่กับที่ จัดตัวตรงเส้น lf (Kp, Kd)
+  set_pid_lb(0.015, 0.10);  // PID อยู่กับที่ จัดตัวตรงเส้น lb (Kp, Kd)
+
   /******************** DISTANCE SCALE ********************/
   // ตัวคูณแปลงความเร็ว → ระยะทาง (ใช้ตอนสั่งเดินตามระยะ)
   // หุ่นเดินเกินระยะ ให้เพิ่มค่า | หุ่นเดินไม่ถึงระยะ ให้ลดค่า
@@ -32,7 +36,7 @@ void Setting() {
   TurnSpeedRight(100, -15, 60);  // เลี้ยวขวา (e E)
   SetSensorTurnLeftRight(2, 5);  // เซนเซอร์หน้าที่ใช้หยุดเลี้ยว (ซ้าย 0–7, ขวา 0–7) ของ TurnLeft/TurnRight
 
-  SetSensorTurnLeftRightB(5, 2);     // เซนเซอร์หลังที่ใช้หยุดเลี้ยว (ซ้าย B[7..l], ขวา B[0..r]) ของ TurnLeft_B/TurnRight_B
+  SetSensorTurnLeftRightB(5, 2);     // เซนเซอร์หลังที่ใช้หยุดเลี้ยว (ซ้าย B[7..l], ขวา B[0..r]) ของ TurnLeftB/TurnRightB
   TurnBackSpeedLeft(-25, 100, 60);   // เลี้ยวซ้าย (q Q)
   TurnBackSpeedRight(100, -25, 60);  // เลี้ยวขวา (e E)
 
@@ -42,7 +46,8 @@ void Setting() {
   TurnSpeedLeftBackB(-25, 100, 60);   // เลี้ยวล้อเดียวถอยหลัง เช็คเซนเซอร์หลัง (TurnLeftBackB)
   TurnSpeedRightBackB(100, -25, 60);  // เลี้ยวล้อเดียวถอยหลัง เช็คเซนเซอร์หลัง (TurnRightBackB)
 
-  ModeSpdPID(0, 100, -5);  // โหมดควบคุมความเร็ว
+  ModeSpdPID(0, 100, -5);       // โหมดควบคุมความเร็ว
+  set_pid_mode2_limit(20, 20);  // ModeSpdPID โหมด 2: กำลังล้อ -(Speed+ถอย)..(Speed+เร่ง) (เร่ง, ถอย)
   // SetRobotPID(0.014, 0.04);  // PID หลัก (ยังไม่ใช้)
 
   /******************** GYRO SPEED MODE ********************/
@@ -53,6 +58,8 @@ void Setting() {
   // ModeSpdGyro(3, 100, -10);  // 3 = ..max          ล้อติดลบ → -Speed
   ModeSpdGyro(4, 100, 0);  // 4 = 0..Speed      ไม่ถอยล้อ
   // ModeSpdGyro(2, 4, 100, -5);   // แยกโหมด (เดินหน้า, ถอยหลัง, max, min)
+  set_gyro_mode2_limit(20, 20);  // โหมด 2: -(Speed+ถอย)..(Speed+เร่ง) (เร่ง, ถอย)
+  set_gyro_mode4_limit(20);      // โหมด 4: 0..(Speed+เร่ง) (เร่ง)
 
   /******************** GYRO PID CONFIG ********************/
   // (kp, kd, maxSpd, minSpd, smallAngle, stopThr)

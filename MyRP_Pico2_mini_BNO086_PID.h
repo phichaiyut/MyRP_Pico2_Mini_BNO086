@@ -40,7 +40,7 @@ int RTurnBackFSpdL, RTurnBackFSpdR, TurnBackFDelayR;
 int LTurnBackBSpdL, LTurnBackBSpdR, TurnBackBDelayL;
 int RTurnBackBSpdL, RTurnBackBSpdR, TurnBackBDelayR;
 int LChTurn = 2, RChTurn = 5;
-int LChTurnB = 5, RChTurnB = 2;  // ดัชนี B[] ของ TurnLeft_B (B[7..l]) / TurnRight_B (B[0..r])
+int LChTurnB = 5, RChTurnB = 2;  // ดัชนี B[] ของ TurnLeftB (B[7..l]) / TurnRightB (B[0..r])
 int tct_delay_break = 0;
 int bct_delay_break = 0;
 int break_ff = 5, break_fc = 30, break_bf = 10, break_bc = 20;  // การหน่วง
@@ -51,11 +51,14 @@ int set_positionL = 1000;
 int set_positionR = 4000;
 float slow_kp_f = 0.005, slow_kd_f = 0.05;
 float slow_kp_b = 0.005, slow_kd_b = 0.05;
+float lf_kp = 0.015, lf_kd = 0.10;  // PID อยู่กับที่ lf()
+float lb_kp = 0.015, lb_kd = 0.10;  // PID อยู่กับที่ lb()
 int line_centor = 0;
 
 int MaxSpeed = 100;
 int MinSpeed = -100;
 int ModePidStatus = 0;
+int pid_mode2_up = 20, pid_mode2_down = 20;  // ModePidStatus 2: ช่วงกำลังล้อ = -(Speed+down)..(Speed+up)
 int dottedline = 0;
 
 float speed_scale_ff = 1.75;  // <-- ใช้ค่าที่คำนวณจากการวัดจริง
@@ -66,6 +69,7 @@ float speed_scale_bb = 1.75;  // <-- ใช้ค่าที่คำนวณ�
 // ======================================================================
 
 void SetFG(int time);
+void SetBG(int time);
 void SetRobotAngle();
 
 void SetToCenterSpeed(int tctv) {
@@ -98,7 +102,7 @@ void SetSensorTurnLeftRight(int l, int r) {
   RChTurn = r;
 }
 
-// เซนเซอร์หลังที่ใช้หยุดเลี้ยว: TurnLeft_B ไล่ B[7] ลงมาถึง B[l], TurnRight_B ไล่ B[0] ขึ้นไปถึง B[r]
+// เซนเซอร์หลังที่ใช้หยุดเลี้ยว: TurnLeftB ไล่ B[7] ลงมาถึง B[l], TurnRightB ไล่ B[0] ขึ้นไปถึง B[r]
 void SetSensorTurnLeftRightB(int l, int r) {
   LChTurnB = l;
   RChTurnB = r;
@@ -177,6 +181,11 @@ void ModeSpdPID(int moD, int maX, int miN) {
   MinSpeed = miN;
 }
 
+void set_pid_mode2_limit(int up, int down) {
+  pid_mode2_up = up;
+  pid_mode2_down = down;
+}
+
 void set_position_line(int _pos) {
   if (_pos < 0) {
     set_position = 0;
@@ -214,6 +223,16 @@ void set_line_center(int x) {
 void set_speed_scale(float fw, float bw) {
   speed_scale_ff = fw;
   speed_scale_bb = bw;
+}
+
+void set_pid_lf(float Kp, float Kd) {
+  lf_kp = Kp;
+  lf_kd = Kd;
+}
+
+void set_pid_lb(float Kp, float Kd) {
+  lb_kp = Kp;
+  lb_kd = Kd;
 }
 
 // ======================================================================
@@ -337,10 +356,10 @@ void ClampPIDPower(float &LeftPower, float &RightPower, int SpeedL, int SpeedR) 
       if (RightPower < MinSpeed) RightPower = MinSpeed;
       break;
     case 2:
-      if (LeftPower > SpeedL) LeftPower = SpeedL;
-      if (LeftPower < -SpeedL) LeftPower = -SpeedL;
-      if (RightPower > SpeedR) RightPower = SpeedR;
-      if (RightPower < -SpeedR) RightPower = -SpeedR;
+      if (LeftPower > SpeedL + pid_mode2_up) LeftPower = SpeedL + pid_mode2_up;
+      if (LeftPower < -SpeedL - pid_mode2_down) LeftPower = -SpeedL - pid_mode2_down;
+      if (RightPower > SpeedR + pid_mode2_up) RightPower = SpeedR + pid_mode2_up;
+      if (RightPower < -SpeedR - pid_mode2_down) RightPower = -SpeedR - pid_mode2_down;
       break;
     case 3:
       if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
@@ -464,13 +483,13 @@ void bbtimer(int baseSpeed, int totalTime) {
 
 void lf(int totalTime) {
   unsigned long endTime = millis() + totalTime;
-  while (millis() <= endTime) PIDF(0, 0, 0.015, 0.10);
+  while (millis() <= endTime) PIDF(0, 0, lf_kp, lf_kd);
   MotorStop();
 }
 
 void lb(int totalTime) {
   unsigned long endTime = millis() + totalTime;
-  while (millis() <= endTime) PIDB(0, 0, 0.015, 0.10);
+  while (millis() <= endTime) PIDB(0, 0, lb_kp, lb_kd);
   MotorStop();
 }
 
@@ -652,8 +671,8 @@ void TurnRight() {
   }
 }
 
-// เลี้ยวล้อเดียวแบบถอยหลัง เช็คเส้นด้วยเซนเซอร์หน้า F[] (ต่างจาก TurnLeft_B()/
-// TurnRight_B() ที่เปลี่ยนไปใช้เซนเซอร์หลัง B[]) ตั้งความเร็ว/ดีเลย์แยกต่างหากจาก
+// เลี้ยวล้อเดียวแบบถอยหลัง เช็คเส้นด้วยเซนเซอร์หน้า F[] (ต่างจาก TurnLeftB()/
+// TurnRightB() ที่เปลี่ยนไปใช้เซนเซอร์หลัง B[]) ตั้งความเร็ว/ดีเลย์แยกต่างหากจาก
 // TurnLeft()/TurnRight() ผ่าน TurnSpeedLeftBackF()/TurnSpeedRightBackF()
 // (ให้ล้อฝั่งที่ไม่ต้องการหมุน = 0 เพื่อให้เป็นการเลี้ยวล้อเดียว)
 void TurnLeftBackF() {
@@ -835,7 +854,14 @@ void spinr2() {
 // ======================================================================
 
 // เซนเซอร์หลัง B[] กลับด้านกับ F[] (ฝั่งซ้ายของหุ่นคือ index สูง) จึงไล่จาก 7 ลงมาถึง LChTurnB
-void TurnLeft_B() {
+void TurnLeftB() {
+  for (int i = 7; i >= 6; i--) {
+    do {
+      Motor(LTurnBackSpdL, LTurnBackSpdR);
+      delayMicroseconds(80);
+      ReadCalibrateB();
+    } while (B[i] >= Ref);
+  }
   for (int i = 7; i >= LChTurnB; i--) {
     do {
       Motor(LTurnBackSpdL, LTurnBackSpdR);
@@ -846,8 +872,14 @@ void TurnLeft_B() {
 }
 
 // ฝั่งขวาของหุ่นคือ index ต่ำของ B[] จึงไล่จาก 0 ขึ้นไปถึง RChTurnB
-void TurnRight_B() {
-
+void TurnRightB() {
+  for (int i = 0; i <= 1; i++) {
+    do {
+      Motor(RTurnBackSpdL, RTurnBackSpdR);
+      delayMicroseconds(80);
+      ReadCalibrateB();
+    } while (B[i] >= Ref);
+  }
   for (int i = 0; i <= RChTurnB; i++) {
     do {
       Motor(RTurnBackSpdL, RTurnBackSpdR);
@@ -858,8 +890,8 @@ void TurnRight_B() {
 }
 
 // เลี้ยวล้อเดียวแบบถอยหลัง เช็คเส้นด้วยเซนเซอร์หลัง B[] (คู่กับ TurnLeftBackF()/
-// TurnRightBackF() ที่เช็คเซนเซอร์หน้า F[]) กลับทิศมอเตอร์จาก TurnLeft_B()/
-// TurnRight_B() ตั้งความเร็ว/ดีเลย์แยกต่างหากผ่าน TurnSpeedLeftBackB()/
+// TurnRightBackF() ที่เช็คเซนเซอร์หน้า F[]) กลับทิศมอเตอร์จาก TurnLeftB()/
+// TurnRightB() ตั้งความเร็ว/ดีเลย์แยกต่างหากผ่าน TurnSpeedLeftBackB()/
 // TurnSpeedRightBackB() (ให้ล้อฝั่งที่ไม่ต้องการหมุน = 0 เพื่อให้เป็นการเลี้ยวล้อเดียว)
 void TurnLeftBackB() {
   // เลือกเซนเซอร์ตามความเร็วล้อที่หมุน เหมือน spinlb() (ดัชนีบน B[] เรียงกลับด้าน
@@ -939,7 +971,7 @@ void spinl2b(int speed) {
   if (tspd <= 50) sensorIdx = 4;
   else if (tspd <= 60) sensorIdx = 5;
   else sensorIdx = 6;
-  for (int i = 7; i >= sensorIdx; i--) {
+  for (int i = 7; i >= 6; i--) {
     do {
       Motor(-speed, speed);
       delayMicroseconds(80);
@@ -1349,7 +1381,6 @@ void TrackSelectB(int spd, char x) {
     case 'e':
       BZon();
       for (int pass = 0; pass < 2; pass++) {
-
         while (1) {
           Motor(-bctL, -bctR);
           ReadCalibrateB();
@@ -1357,7 +1388,7 @@ void TrackSelectB(int spd, char x) {
         }
       }
       BZoff();
-      TurnLeft_B();
+      TurnLeftB();
       break;
 
     case 'E':
@@ -1371,13 +1402,12 @@ void TrackSelectB(int spd, char x) {
         }
       }
       BZoff();
-      TurnLeft_B();
+      TurnLeftB();
       break;
 
     case 'q':
       BZon();
       for (int pass = 0; pass < 2; pass++) {
-
         while (1) {
           Motor(-bctL, -bctR);
           ReadCalibrateB();
@@ -1385,14 +1415,13 @@ void TrackSelectB(int spd, char x) {
         }
       }
       BZoff();
-      TurnRight_B();
+      TurnRightB();
       break;
 
     case 'Q':
       ToBack();
       BZon();
       for (int pass = 0; pass < 2; pass++) {
-
         while (1) {
           Motor(-bctL, -bctR);
           ReadCalibrateB();
@@ -1400,7 +1429,7 @@ void TrackSelectB(int spd, char x) {
         }
       }
       BZoff();
-      TurnRight_B();
+      TurnRightB();
       break;
 
     case 'b':

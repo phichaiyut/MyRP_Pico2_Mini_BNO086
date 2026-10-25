@@ -51,20 +51,24 @@
 // SetToCenterSpeed(20);                    // ความเร็วตอนเข้ากลาง
 // set_brake_fc(ff, fc);                    // เวลาเบรก (ms) ตอนเดินหน้า
 // set_brake_bc(bf, bc);                    // เวลาเบรก (ms) ตอนถอยหลัง
+// set_pid_lf(kp, kd);  set_pid_lb(kp, kd); // PID ของ lf / lb (ค่าเริ่มต้น 0.015, 0.10)
 //
 // --- ความเร็วเลี้ยว (ใช้กับ select l r q e) ---
 // SetTurnSpeed(50);                        // ความเร็วหมุน 'l' 'r'
 // TurnSpeedLeft(L, R, ms);                 TurnSpeedRight(L, R, ms);         // 'q' 'e'  TurnLeft / TurnRight
 // SetSensorTurnLeftRight(l, r);            // เซนเซอร์หน้าที่ใช้หยุด TurnLeft (F[0..l]) / TurnRight (F[7..r])
-// SetSensorTurnLeftRightB(l, r);           // เซนเซอร์หลังที่ใช้หยุด TurnLeft_B (B[7..l]) / TurnRight_B (B[0..r])
-// TurnBackSpeedLeft(L, R, ms);             TurnBackSpeedRight(L, R, ms);     // TurnLeft_B / TurnRight_B
+// SetSensorTurnLeftRightB(l, r);           // เซนเซอร์หลังที่ใช้หยุด TurnLeftB (B[7..l]) / TurnRightB (B[0..r])
+// TurnBackSpeedLeft(L, R, ms);             TurnBackSpeedRight(L, R, ms);     // TurnLeftB / TurnRightB
 // TurnSpeedLeftBackF(L, R, ms);            TurnSpeedRightBackF(L, R, ms);    // TurnLeftBackF / TurnRightBackF
 // TurnSpeedLeftBackB(L, R, ms);            TurnSpeedRightBackB(L, R, ms);    // TurnLeftBackB / TurnRightBackB
 //
 // --- โหมดจำกัดความเร็วล้อ ---
 // ModeSpdPID(mode, max, min);                                                // PID เส้น
+// set_pid_mode2_limit(up, down);           // PID เส้น โหมด 2: -(Speed+down)..(Speed+up) (ค่าเริ่มต้น 20, 20)
 // ModeSpdGyro(mode, max, min);             ModeSpdGyro(modeF, modeB, max, min);  // Gyro (แยกหน้า/หลังได้)
 //     mode 0 = 0..max   1 = min..max   2 = -Speed..Speed   3 = ..max   4 = 0..Speed (ไม่ถอยล้อ)
+// set_gyro_mode2_limit(up, down);          // Gyro โหมด 2: -(Speed+down)..(Speed+up) (ค่าเริ่มต้น 20, 20)
+// set_gyro_mode4_limit(up);                // Gyro โหมด 4: 0..(Speed+up) (ค่าเริ่มต้น 20)
 //
 // --- PID ไจโร ---
 // SetGyroTurn(kp, kd, maxSpd, minSpd, smallAngle, stopThr);   // เลี้ยวล้อเดียวเดินหน้า (turndegree)
@@ -178,12 +182,15 @@
 // fftimercr(speed, ms [, 'p']);     bbtimercr(speed, ms [, 'p']);
 // ffcmcl(speed, cm [, 'p']);        bbcmcl(speed, cm [, 'p']);
 // ffcmcr(speed, cm [, 'p']);        bbcmcr(speed, cm [, 'p']);
+// ffdircl(speed, dir [, 'p']);      bbdircl(speed, dir [, 'p']);     // จนหันถึงทิศ dir (0/90/180/270)
+// ffdircr(speed, dir [, 'p']);      bbdircr(speed, dir [, 'p']);
 //                                   ( [ ] = ใส่หรือไม่ใส่ก็ได้ )
 //
 // --- กำหนด Kp / Kd เอง (ใส่ต่อจาก speed) ---
 // ffcl(speed, kp, [kd,] 'p');                  bbcl / ffcr / bbcr ใช้แบบเดียวกัน
 // fftimercl(speed, kp, [kd,] ms [, 'p']);      ...timercr / bbtimercl / bbtimercr แบบเดียวกัน
 // ffcmcl(speed, kp, [kd,] cm [, 'p']);         ...cmcr / bbcmcl / bbcmcr แบบเดียวกัน (cm เป็นจำนวนเต็ม)
+// ffdircl(speed, kp, [kd,] dir [, 'p']);       ...dircr / bbdircl / bbdircr แบบเดียวกัน (kp ต้องมีจุดทศนิยม เช่น 0.02)
 
 
 /* ==========================================================================
@@ -207,7 +214,7 @@
 // spinlb([speed]);     spinrb([speed]);      // ใช้เซนเซอร์หลัง
 // spinl2b([speed]);    spinr2b([speed]);
 // TurnLeft();          TurnRight();          // เลี้ยวโค้ง เซนเซอร์หน้า
-// TurnLeft_B();        TurnRight_B();        // เลี้ยวโค้ง เซนเซอร์หลัง
+// TurnLeftB();        TurnRightB();        // เลี้ยวโค้ง เซนเซอร์หลัง
 // TurnLeftBackF();     TurnRightBackF();     // เลี้ยวล้อเดียวถอยหลัง เช็คเซนเซอร์หน้า
 // TurnLeftBackB();     TurnRightBackB();     // เลี้ยวล้อเดียวถอยหลัง เช็คเซนเซอร์หลัง
 
@@ -223,8 +230,9 @@
 // SetG(ms);    setg(ms);       // ล็อกมุม (หมุนอยู่กับที่) ตามเวลา
 // SetGB(ms);   setgb(ms);      // ล็อกมุม แบบถอยหลัง
 // SetFG(ms);   setfg(ms);      // ล็อกมุม แบบเดินหน้า
+// SetBG(ms);   setbg(ms);      // ล็อกมุม แบบถอยหลัง (จำมุม ณ ตอนเรียก เหมือน SetFG)
 // SetHoldAngle();              // จำมุมปัจจุบันให้ HoldAngle...
-// HoldAngle();   HoldAngleB();   HoldAngleF();    // ใช้ใน loop เพื่อค้างมุม
+// HoldAngle();   HoldAngleB();   HoldAngleF();   HoldAngleBF();    // ใช้ใน loop เพื่อค้างมุม
 
 
 /* ==========================================================================
@@ -244,6 +252,11 @@
 // turndirectionb([speed,] dir);
 // turndirection_none([speed,] dir);
 // turndirectionb_none([speed,] dir);
+//
+// --- วิ่งตามเส้นจนหันถึงทิศ (ใช้กับเส้นโค้ง) ---
+// ffdir(speed, dir [, 'p']);             bbdir(speed, dir [, 'p']);             // เช่น ffdir(50, 270);
+// ffdir(speed, kp, [kd,] dir [, 'p']);   bbdir(speed, kp, [kd,] dir [, 'p']);   // กำหนด Kp / Kd เอง (kp ต้องมีจุดทศนิยม)
+// set_line_dir_threshold(5.0);           // ระยะยอมรับ (องศา) ค่าเริ่มต้น 5
 //
 // --- ชื่อย่อ (ใส่มุมเป็นบวกเสมอ) ---
 //   ซ้าย                ขวา                 ย่อ

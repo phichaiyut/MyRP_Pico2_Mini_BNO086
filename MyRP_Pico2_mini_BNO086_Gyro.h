@@ -20,6 +20,7 @@
  *   [12] ทางแยก (TrackSelectG / TrackSelectGB)
  *   [13] วิ่งตรงจนเจอเส้น / ระยะ + ทางแยก
  *   [14] ทางแยก + ล็อกทิศ
+ *   [15] วิ่งตามเส้นจนหันถึงทิศ (ffdir / bbdir / ffdircl / ffdircr ...)
  */
 
 #include <Wire.h>
@@ -132,14 +133,26 @@ float quatToYawDeg() {
   return yaw;
 }
 
-int angleRead() {
-  if (!myIMU.getSensorEvent()) return lastYaw;
-  if (myIMU.getSensorEventID() != SENSOR_REPORTID_ROTATION_VECTOR) return lastYaw;
+int updateYawFromEvent() {
   float yaw = quatToYawDeg();
   float yawZeroed = wrap180(yaw - yawOffset);
   float delta = wrap180(yawZeroed - lastYaw);
   yawgyro += delta;
   return lastYaw = yawZeroed;
+}
+
+int angleRead() {
+  if (!myIMU.getSensorEvent()) return lastYaw;
+  if (myIMU.getSensorEventID() != SENSOR_REPORTID_ROTATION_VECTOR) return lastYaw;
+  return updateYawFromEvent();
+}
+
+// รอค่ามุมใหม่จาก IMU ก่อนคืนค่า (ใช้ตอนตั้งมุมเป้าหมาย)
+// angleRead() คืน lastYaw เก่าถ้ายังไม่มี packet ใหม่ ถ้าคำสั่งก่อนหน้าไม่ได้อ่านไจโร (เช่น วิ่งตามเส้น)
+// lastYaw จะค้างเป็นมุมเดิม ทำให้เป้าหมายผิด หุ่นหมุนกลับไปมุมเก่าก่อนแล้วค่อยหมุนต่อ
+int angleReadFresh() {
+  if (!waitForRotVec(50)) return lastYaw;
+  return updateYawFromEvent();
 }
 
 // คืน true ถ้า reset สำเร็จ, false = gyro ไม่ส่งข้อมูล (บี๊บเตือน และ offset เป็นค่าเดิม)
@@ -276,6 +289,7 @@ float holdAngle = 0;
 float prevErrHold = 0;
 float prevErrHoldB = 0;
 float prevErrHoldF = 0;
+float prevErrHoldBF = 0;
 
 void HoldAngle() {
   float error = current_degree - gyroZ();
@@ -290,14 +304,14 @@ void HoldAngle() {
 }
 
 void HoldAngleB() {
-  float error = current_degree - gyroZ();
+  float error = gyroZ() - current_degree;
   // wrap -180 ถึง 180
   if (error > 180) error -= 360;
   else if (error < -180) error += 360;
   float d = error - prevErrHoldB;
   int power = (error * kpBHold) + (d * kdBHold);
   power = constrain(power, -50, 50);  // แรงหมุน
-  Motor(-power, power);               // หมุนอยู่กับที่
+  Motor(power, -power);               // หมุนอยู่กับที่
   prevErrHoldB = error;
 }
 
@@ -333,6 +347,33 @@ void setfg(int totalTime) {
   SetFG(totalTime);
 }
 
+void HoldAngleBF() {
+  float error = gyroZ() - holdAngle;
+  // wrap -180 ถึง 180
+  if (error > 180) error -= 360;
+  else if (error < -180) error += 360;
+  float d = error - prevErrHoldBF;
+  int power = (error * kpBHold) + (d * kdBHold);
+  power = constrain(power, -50, 50);  // แรงหมุน
+  Motor(-power, power);               // หมุนอยู่กับที่
+  prevErrHoldBF = error;
+}
+
+void SetBG(int totalTime) {
+  BZon();
+  SetHoldAngle();
+  prevErrHoldBF = 0;
+  unsigned long endTime = millis() + totalTime;
+  while (millis() <= endTime) {
+    HoldAngleBF();
+  }
+  BZoff();
+}
+
+void setbg(int totalTime) {
+  SetBG(totalTime);
+}
+
 void SetG(int totalTime) {
   BZon();
   unsigned long endTime = millis() + totalTime;
@@ -363,7 +404,7 @@ void spindegree(int Speed, int relative_degree) {
   float small_angle_threshold = gyro_SmallAngle_Spin;  // ลดจาก 25: ช่วงคลานที่ min_speed แคบลง วิ่งเร็วได้นานขึ้นก่อนเข้าเบรก
   float stop_threshold = gyro_StopThr_Spin;
   float previous_error = 0;
-  float target_degree = gyroZ() + relative_degree;
+  float target_degree = angleReadFresh() + relative_degree;
   if (target_degree > 180.0f) target_degree -= 360.0f;
   if (target_degree < -180.0f) target_degree += 360.0f;
   current_degree = target_degree;
@@ -410,7 +451,7 @@ void turndegree(int Speed, int relative_degree) {
   float small_angle_threshold = gyro_SmallAngle_Turn;  // ลดจาก 25: ช่วงคลานที่ min_speed แคบลง วิ่งเร็วได้นานขึ้นก่อนเข้าเบรก
   float stop_threshold = gyro_StopThr_Turn;
   float previous_error = 0;
-  float target_degree = gyroZ() + relative_degree;
+  float target_degree = angleReadFresh() + relative_degree;
 
   if (target_degree > 180.0f) target_degree -= 360.0f;
   if (target_degree < -180.0f) target_degree += 360.0f;
@@ -466,7 +507,7 @@ void turndegreeb(int Speed, int relative_degree) {
   float small_angle_threshold = gyro_SmallAngle_TurnB;
   float stop_threshold = gyro_StopThr_TurnB;
   float previous_error = 0;
-  float target_degree = gyroZ() + relative_degree;
+  float target_degree = angleReadFresh() + relative_degree;
   if (target_degree > 180.0f) target_degree -= 360.0f;
   if (target_degree < -180.0f) target_degree += 360.0f;
   current_degree = target_degree;
@@ -518,7 +559,7 @@ void turndegreeb(int Speed, int relative_degree) {
 void rotatedegree(int SpeedL, int SpeedR, int relative_degree, float kp, float kd) {
   float stop_threshold = gyro_StopThr_Rotate;
   float previous_error = 0;
-  float target_degree = gyroZ() + relative_degree;
+  float target_degree = angleReadFresh() + relative_degree;
 
   if (target_degree > 180.0f) target_degree -= 360.0f;
   if (target_degree < -180.0f) target_degree += 360.0f;
@@ -640,7 +681,7 @@ void turndegreeb_none(int relative_degree) {
 
 // คำนวณมุมที่ต้องหมุนจากมุมปัจจุบันไปยังทิศทางสัมบูรณ์ (ทางที่สั้นที่สุด)
 int relativeToDirection(int direction) {
-  float relative = fmodf((float)direction, 360.0f) - gyroZ();
+  float relative = fmodf((float)direction, 360.0f) - angleReadFresh();
   while (relative > 180.0f) relative -= 360.0f;
   while (relative < -180.0f) relative += 360.0f;
   return (int)roundf(relative);
@@ -707,11 +748,13 @@ void SetGyroRunB(float kp, float kd) {
 }
 
 // โหมดจำกัดกำลังมอเตอร์ของ RunG (เดินหน้า) / RunGB (ถอยหลัง) แยกจาก ModePidStatus ของ PID เส้น
-// ค่าเริ่มต้นตรงกับพฤติกรรมเดิม: RunG = โหมด 2 (-Speed..Speed), RunGB = โหมด 4 (0..Speed)
+// ค่าเริ่มต้น: RunG และ RunGB = โหมด 4 (0..Speed+up ไม่ถอยล้อ)
 int MaxSpeedG = 100;
 int MinSpeedG = -5;
 int ModeGyroStatus = 4;
 int ModeGyroBStatus = 4;
+int gyro_limit_up = 20, gyro_limit_down = 20;  // โหมด 2: -(Speed+down)..(Speed+up)
+int gyro_limit4_up = 20;                       // โหมด 4: 0..(Speed+up)
 
 // ตั้งโหมดจำกัดกำลังของ gyro (ใช้ทั้ง RunG และ RunGB) แบบเดียวกับ ModeSpdPID()
 void ModeSpdGyro(int moD, int maX, int miN) {
@@ -727,6 +770,17 @@ void ModeSpdGyro(int moDF, int moDB, int maX, int miN) {
   ModeGyroBStatus = moDB;
   MaxSpeedG = maX;
   MinSpeedG = miN;
+}
+
+// ช่วงกำลังล้อของโหมด 2 (ใช้ทั้ง RunG และ RunGB)
+void set_gyro_mode2_limit(int up, int down) {
+  gyro_limit_up = up;
+  gyro_limit_down = down;
+}
+
+// ช่วงกำลังล้อของโหมด 4: 0..(Speed+up) (ใช้ทั้ง RunG และ RunGB)
+void set_gyro_mode4_limit(int up) {
+  gyro_limit4_up = up;
 }
 
 // จำกัดค่า LeftPower/RightPower ของ gyro ตามโหมด (เคส 0-3 เหมือน ClampPIDPower, เคส 4 = 0..Speed)
@@ -745,10 +799,10 @@ void ClampGyroPower(float &LeftPower, float &RightPower, int SpeedL, int SpeedR,
       if (RightPower < MinSpeedG) RightPower = MinSpeedG;
       break;
     case 2:
-      if (LeftPower > SpeedL + 20) LeftPower = SpeedL + 20;
-      if (LeftPower < -SpeedL - 20) LeftPower = -SpeedL - 20;
-      if (RightPower > SpeedR + 20) RightPower = SpeedR + 20;
-      if (RightPower < -SpeedR - 20) RightPower = -SpeedR - 20;
+      if (LeftPower > SpeedL + gyro_limit_up) LeftPower = SpeedL + gyro_limit_up;
+      if (LeftPower < -SpeedL - gyro_limit_down) LeftPower = -SpeedL - gyro_limit_down;
+      if (RightPower > SpeedR + gyro_limit_up) RightPower = SpeedR + gyro_limit_up;
+      if (RightPower < -SpeedR - gyro_limit_down) RightPower = -SpeedR - gyro_limit_down;
       break;
     case 3:
       if (LeftPower > MaxSpeedG) LeftPower = MaxSpeedG;
@@ -757,9 +811,9 @@ void ClampGyroPower(float &LeftPower, float &RightPower, int SpeedL, int SpeedR,
       if (RightPower < 0) RightPower = -BaseSpeed;
       break;
     case 4:
-      if (LeftPower > SpeedL + 20) LeftPower = SpeedL + 20;
+      if (LeftPower > SpeedL + gyro_limit4_up) LeftPower = SpeedL + gyro_limit4_up;
       if (LeftPower < 0) LeftPower = 0;
-      if (RightPower > SpeedR + 20) RightPower = SpeedR + 20;
+      if (RightPower > SpeedR + gyro_limit4_up) RightPower = SpeedR + gyro_limit4_up;
       if (RightPower < 0) RightPower = 0;
       break;
     default:
@@ -1692,6 +1746,252 @@ void ffcmg(int Speed, float distance_cm, char select, int direction) {
 void bbcmg(int Speed, float distance_cm, char select, int direction) {
   bbcmg(Speed, distance_cm, direction);
   TrackSelectGB(Speed, select);
+}
+
+// ======================================================================
+// [15] วิ่งตามเส้นจนหันถึงทิศ (ffdir / bbdir)
+// ======================================================================
+// วิ่งตามเส้น (PIDF / PIDB) ไปเรื่อย ๆ จนมุมไจโรถึงทิศสัมบูรณ์ (0 / 90 / 180 / 270 อ้างอิงตอน resetAngles)
+// ใช้กับเส้นโค้ง เช่น ffdir(50, 270); = วิ่งตามเส้นโค้งไปจนหุ่นหันไปทิศ 270
+// ไม่มี select: จบแล้วมอเตอร์ยังหมุนอยู่ ต่อคำสั่งถัดไปได้ทันที
+
+float line_dir_threshold = 5.0f;  // ถือว่าถึงทิศเมื่อ |error| <= ค่านี้ (องศา)
+
+void set_line_dir_threshold(float thr) {
+  line_dir_threshold = thr;
+}
+
+// true = มุมปัจจุบันถึงทิศ direction แล้ว (อยู่ในช่วง threshold หรือหมุนเลยเป้าไปแล้ว)
+static bool reachedDirection(int direction, float &previous_error) {
+  float error = wrap180(fmodf((float)direction, 360.0f) - angleRead());
+  // มุมอาจกระโดดข้ามช่วง threshold ตอนเลี้ยวเร็ว จึงถือว่าถึงเมื่อ error เปลี่ยนเครื่องหมายด้วย
+  // (|error| < 90 กันกรณี error กระโดดจาก +180 เป็น -180 ตอน wrap)
+  bool crossed = fabsf(error) < 90.0f && ((error > 0 && previous_error < 0) || (error < 0 && previous_error > 0));
+  previous_error = error;
+  return fabsf(error) <= line_dir_threshold || crossed;
+}
+
+// Kp / Kd ติดลบ = ใช้ค่าจากตารางความเร็ว (PID_KP_Front / PID_KD_Front)
+static void ffdir_pid(int Speed, int direction, float Kp, float Kd) {
+  BaseSpeed = Speed;
+  InitialSpeed();
+  if (Kp < 0) Kp = PID_KP_Front;
+  if (Kd < 0) Kd = PID_KD_Front;
+  float previous_error = wrap180(fmodf((float)direction, 360.0f) - angleReadFresh());
+  while (!reachedDirection(direction, previous_error)) PIDF(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
+}
+
+// Kp / Kd ติดลบ = ใช้ค่าจากตารางความเร็ว (PID_KP_Back / PID_KD_Back)
+static void bbdir_pid(int Speed, int direction, float Kp, float Kd) {
+  BaseSpeed = Speed;
+  InitialSpeed();
+  if (Kp < 0) Kp = PID_KP_Back;
+  if (Kd < 0) Kd = PID_KD_Back;
+  float previous_error = wrap180(fmodf((float)direction, 360.0f) - angleReadFresh());
+  while (!reachedDirection(direction, previous_error)) PIDB(BackLeftBaseSpeed, BackRightBaseSpeed, Kp, Kd);
+}
+
+void ffdir(int Speed, int direction) {
+  ffdir_pid(Speed, direction, -1, -1);
+}
+
+void bbdir(int Speed, int direction) {
+  bbdir_pid(Speed, direction, -1, -1);
+}
+
+void ffdir(int Speed, int direction, char select) {
+  ffdir(Speed, direction);
+  TrackSelectF(Speed, select);
+}
+
+void bbdir(int Speed, int direction, char select) {
+  bbdir(Speed, direction);
+  TrackSelectB(Speed, select);
+}
+
+// --- กำหนด Kp / Kd เอง: (speed, kp, [kd,] ทิศ [, select]) ---
+void ffdir(int Speed, float Kp, int direction) {
+  ffdir_pid(Speed, direction, Kp, -1);
+}
+
+void bbdir(int Speed, float Kp, int direction) {
+  bbdir_pid(Speed, direction, Kp, -1);
+}
+
+void ffdir(int Speed, float Kp, int direction, char select) {
+  ffdir_pid(Speed, direction, Kp, -1);
+  TrackSelectF(Speed, select);
+}
+
+void bbdir(int Speed, float Kp, int direction, char select) {
+  bbdir_pid(Speed, direction, Kp, -1);
+  TrackSelectB(Speed, select);
+}
+
+void ffdir(int Speed, float Kp, float Kd, int direction) {
+  ffdir_pid(Speed, direction, Kp, Kd);
+}
+
+void bbdir(int Speed, float Kp, float Kd, int direction) {
+  bbdir_pid(Speed, direction, Kp, Kd);
+}
+
+void ffdir(int Speed, float Kp, float Kd, int direction, char select) {
+  ffdir_pid(Speed, direction, Kp, Kd);
+  TrackSelectF(Speed, select);
+}
+
+void bbdir(int Speed, float Kp, float Kd, int direction, char select) {
+  bbdir_pid(Speed, direction, Kp, Kd);
+  TrackSelectB(Speed, select);
+}
+
+// --- วิ่งโค้ง cl = เบี่ยงซ้าย (set_positionL), cr = เบี่ยงขวา (set_positionR) ---
+
+void ffdircl(int Speed, int direction) {
+  int temp = set_position;
+  set_position = set_positionL;
+  ffdir(Speed, direction);
+  set_position = temp;
+}
+
+void ffdircr(int Speed, int direction) {
+  int temp = set_position;
+  set_position = set_positionR;
+  ffdir(Speed, direction);
+  set_position = temp;
+}
+
+void bbdircl(int Speed, int direction) {
+  int temp = set_position;
+  set_position = set_positionL;
+  bbdir(Speed, direction);
+  set_position = temp;
+}
+
+void bbdircr(int Speed, int direction) {
+  int temp = set_position;
+  set_position = set_positionR;
+  bbdir(Speed, direction);
+  set_position = temp;
+}
+
+void ffdircl(int Speed, int direction, char select) {
+  int temp = set_position;
+  set_position = set_positionL;
+  ffdir(Speed, direction, select);
+  set_position = temp;
+}
+
+void ffdircr(int Speed, int direction, char select) {
+  int temp = set_position;
+  set_position = set_positionR;
+  ffdir(Speed, direction, select);
+  set_position = temp;
+}
+
+void bbdircl(int Speed, int direction, char select) {
+  int temp = set_position;
+  set_position = set_positionL;
+  bbdir(Speed, direction, select);
+  set_position = temp;
+}
+
+void bbdircr(int Speed, int direction, char select) {
+  int temp = set_position;
+  set_position = set_positionR;
+  bbdir(Speed, direction, select);
+  set_position = temp;
+}
+
+// --- *dircl/cr แบบกำหนด Kp / Kd เอง: (speed, kp, [kd,] ทิศ [, select]) ---
+
+void ffdircl(int Speed, float Kp, float Kd, int direction) {
+  int temp = set_position;
+  set_position = set_positionL;
+  ffdir(Speed, Kp, Kd, direction);
+  set_position = temp;
+}
+
+void ffdircr(int Speed, float Kp, float Kd, int direction) {
+  int temp = set_position;
+  set_position = set_positionR;
+  ffdir(Speed, Kp, Kd, direction);
+  set_position = temp;
+}
+
+void bbdircl(int Speed, float Kp, float Kd, int direction) {
+  int temp = set_position;
+  set_position = set_positionL;
+  bbdir(Speed, Kp, Kd, direction);
+  set_position = temp;
+}
+
+void bbdircr(int Speed, float Kp, float Kd, int direction) {
+  int temp = set_position;
+  set_position = set_positionR;
+  bbdir(Speed, Kp, Kd, direction);
+  set_position = temp;
+}
+
+void ffdircl(int Speed, float Kp, float Kd, int direction, char select) {
+  int temp = set_position;
+  set_position = set_positionL;
+  ffdir(Speed, Kp, Kd, direction, select);
+  set_position = temp;
+}
+
+void ffdircr(int Speed, float Kp, float Kd, int direction, char select) {
+  int temp = set_position;
+  set_position = set_positionR;
+  ffdir(Speed, Kp, Kd, direction, select);
+  set_position = temp;
+}
+
+void bbdircl(int Speed, float Kp, float Kd, int direction, char select) {
+  int temp = set_position;
+  set_position = set_positionL;
+  bbdir(Speed, Kp, Kd, direction, select);
+  set_position = temp;
+}
+
+void bbdircr(int Speed, float Kp, float Kd, int direction, char select) {
+  int temp = set_position;
+  set_position = set_positionR;
+  bbdir(Speed, Kp, Kd, direction, select);
+  set_position = temp;
+}
+
+void ffdircl(int Speed, float Kp, int direction) {
+  ffdircl(Speed, Kp, -1.0f, direction);
+}
+
+void ffdircr(int Speed, float Kp, int direction) {
+  ffdircr(Speed, Kp, -1.0f, direction);
+}
+
+void bbdircl(int Speed, float Kp, int direction) {
+  bbdircl(Speed, Kp, -1.0f, direction);
+}
+
+void bbdircr(int Speed, float Kp, int direction) {
+  bbdircr(Speed, Kp, -1.0f, direction);
+}
+
+void ffdircl(int Speed, float Kp, int direction, char select) {
+  ffdircl(Speed, Kp, -1.0f, direction, select);
+}
+
+void ffdircr(int Speed, float Kp, int direction, char select) {
+  ffdircr(Speed, Kp, -1.0f, direction, select);
+}
+
+void bbdircl(int Speed, float Kp, int direction, char select) {
+  bbdircl(Speed, Kp, -1.0f, direction, select);
+}
+
+void bbdircr(int Speed, float Kp, int direction, char select) {
+  bbdircr(Speed, Kp, -1.0f, direction, select);
 }
 
 #endif  // MYRP_PICO2_MINI_GYRO_H

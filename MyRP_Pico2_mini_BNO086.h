@@ -83,14 +83,14 @@ void RobotSetup() {
   bool imuFound = false;
   unsigned long imuStart = millis();
   while (millis() - imuStart < 10000) {
-    if (myIMU.begin(0x4A, Wire, -1, -1)) {
+    if (myIMU.begin(0x4A, Wire, -1, -1) || myIMU.begin(0x4B, Wire, -1, -1)) {
       imuFound = true;
       break;
     }
     delay(100);
   }
   if (!imuFound) {
-    Serial.println("BNO08x not detected at default I2C address. Check your jumpers and the hookup guide.");
+    Serial.println("BNO08x not detected at 0x4A or 0x4B. Check your jumpers and the hookup guide.");
     Beep(500);
     delay(200);
     Beep(500);
