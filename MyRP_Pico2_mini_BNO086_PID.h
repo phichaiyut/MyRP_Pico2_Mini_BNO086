@@ -935,8 +935,8 @@ void TurnRightBackB() {
 void spinlb(int speed) {
   MotorStop();
   int sensorIdx;
-  if (tspd <= 50) sensorIdx = 4;
-  else if (tspd <= 60) sensorIdx = 5;
+  if (speed <= 50) sensorIdx = 4;
+  else if (speed <= 60) sensorIdx = 5;
   else sensorIdx = 6;
   for (int i = 7; i >= 6; i--) {
     do {
@@ -968,8 +968,8 @@ void spinlb() {
 void spinl2b(int speed) {
   MotorStop();
   int sensorIdx;
-  if (tspd <= 50) sensorIdx = 4;
-  else if (tspd <= 60) sensorIdx = 5;
+  if (speed <= 50) sensorIdx = 4;
+  else if (speed <= 60) sensorIdx = 5;
   else sensorIdx = 6;
   for (int i = 7; i >= 6; i--) {
     do {
@@ -1002,8 +1002,8 @@ void spinl2b() {
 void spinrb(int speed) {
   MotorStop();
   int sensorIdx;
-  if (tspd <= 50) sensorIdx = 3;
-  else if (tspd <= 60) sensorIdx = 2;
+  if (speed <= 50) sensorIdx = 3;
+  else if (speed <= 60) sensorIdx = 2;
   else sensorIdx = 1;
   for (int i = 0; i <= 1; i++) {
     do {
@@ -1034,8 +1034,8 @@ void spinrb() {
 void spinr2b(int speed) {
   MotorStop();
   int sensorIdx;
-  if (tspd <= 50) sensorIdx = 3;
-  else if (tspd <= 60) sensorIdx = 2;
+  if (speed <= 50) sensorIdx = 3;
+  else if (speed <= 60) sensorIdx = 2;
   else sensorIdx = 1;
   for (int i = 0; i <= 1; i++) {
     do {

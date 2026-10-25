@@ -235,6 +235,10 @@ void sw() {
     Serial.print(" ");
     Serial.print("   Gyro: ");
     Serial.print(gyroZ());  // มุม Yaw ช่วง -180..180
+    Serial.print("   Batt: ");
+    updateBattery();
+    Serial.print(getBatteryVoltage(), 2);  // แรงดันแบต (V) ที่กรองแล้ว
+    Serial.print("V");
 
     Serial.println();
     delay(100);  // อ่าน/แสดงผลทุก 100ms กันสแปม Serial/สแกน ADC รัวๆ
