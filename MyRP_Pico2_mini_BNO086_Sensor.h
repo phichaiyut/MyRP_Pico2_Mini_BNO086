@@ -1,5 +1,7 @@
 #ifndef MYRP_PICO2_MINI_SENSOR_H
 #define MYRP_PICO2_MINI_SENSOR_H
+// โมดูลที่ไฟล์นี้ใช้ (include ซ้ำได้ มี guard) → include ไฟล์นี้เดี่ยว ๆ หรือสลับลำดับได้
+#include "MyRP_Pico2_mini_BNO086_Buzzer.h"
 
 /*
  * MyRP_Pico2_mini_BNO086_Sensor.h
@@ -129,12 +131,14 @@ void ensureEEPROMBegin_LOCAL() {
   }
 }
 
-void writeEEPROM_LOCAL(unsigned int eeAddress, byte *data, int dataLength) {
+// commit = false: เขียนลงบัฟเฟอร์ RAM อย่างเดียว ยังไม่ลง flash (ให้ครั้งสุดท้ายของชุด commit ทีเดียว)
+// แต่ละ commit = ลบ + เขียน flash ทั้งเซกเตอร์ (ช้า ปิด interrupt และสึกหรอ) จึงรวมเป็นครั้งเดียวต่อการบันทึก
+void writeEEPROM_LOCAL(unsigned int eeAddress, byte *data, int dataLength, bool commit = true) {
   ensureEEPROMBegin_LOCAL();
   for (int i = 0; i < dataLength; i++) {
     EEPROM.write(eeAddress + i, data[i]);
   }
-  EEPROM.commit();
+  if (commit) EEPROM.commit();
 }
 
 void readEEPROM_LOCAL(unsigned int eeAddress, byte *buffer, int dataLength) {
@@ -202,7 +206,7 @@ void saveCalibA_LOCAL() {
     buf[i * 2] = highByte(maxValueF[i]);
     buf[i * 2 + 1] = lowByte(maxValueF[i]);
   }
-  writeEEPROM_LOCAL(0, buf, 16);
+  writeEEPROM_LOCAL(0, buf, 16, false);  // commit ครั้งเดียวตอนเขียนชุด min
 
   for (int i = 0; i < 8; i++) {
     buf[i * 2] = highByte(minValueF[i]);
@@ -264,7 +268,7 @@ void saveCalibB_LOCAL() {
     buf[i * 2] = highByte(maxValueB[i]);
     buf[i * 2 + 1] = lowByte(maxValueB[i]);
   }
-  writeEEPROM_LOCAL(32, buf, 16);
+  writeEEPROM_LOCAL(32, buf, 16, false);  // commit ครั้งเดียวตอนเขียนชุด min
 
   for (int i = 0; i < 8; i++) {
     buf[i * 2] = highByte(minValueB[i]);
@@ -330,7 +334,7 @@ void saveCalibC_LOCAL() {
     buf[i * 2] = highByte(maxValueC[i]);
     buf[i * 2 + 1] = lowByte(maxValueC[i]);
   }
-  writeEEPROM_LOCAL(64, buf, 4);
+  writeEEPROM_LOCAL(64, buf, 4, false);  // commit ครั้งเดียวตอนเขียนชุด min
 
   for (int i = 0; i < 2; i++) {
     buf[i * 2] = highByte(minValueC[i]);
@@ -435,6 +439,19 @@ void printCalibration() {
   Serial.println("=================================\n");
 }
 
+// จำนวนช่องที่ค่าคาลิเบรตใช้ไม่ได้ (max <= min) ของชุด LOCAL ที่ ReadCalibrate* ใช้จริง
+int countBadCalibration_LOCAL() {
+  int bad = 0;
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    if (maxValueF[i] <= minValueF[i]) bad++;
+    if (maxValueB[i] <= minValueB[i]) bad++;
+  }
+  for (int i = 0; i < 2; i++) {
+    if (maxValueC[i] <= minValueC[i]) bad++;
+  }
+  return bad;
+}
+
 // ใช้เฉพาะกับค่า _LOCAL (minValue*/maxValue*)
 void printCalibration_LOCAL() {
   Serial.println("\n=== Calibration Values Loaded (LOCAL) ===");
@@ -451,6 +468,10 @@ void printCalibration_LOCAL() {
   Serial.println("--- Sensor C (Side) ---");
   Serial.printf("C0 → Max: %4d  Min: %4d\n", maxValueC[0], minValueC[0]);
   Serial.printf("C1 → Max: %4d  Min: %4d\n", maxValueC[1], minValueC[1]);
+  int bad = countBadCalibration_LOCAL();
+  if (bad > 0) {
+    Serial.printf("!! WARNING: %d sensor channel(s) not calibrated (Max <= Min) -> read as 0\n", bad);
+  }
   Serial.println("=================================\n");
 }
 
@@ -513,15 +534,20 @@ void clampSensorValueB(int x, int y) {
   BACK_MAX = y;
 }
 
+// แปลงค่าดิบเป็น 0-1000 ตามค่าคาลิเบรต | max <= min (ยังไม่คาลิเบรต / flash ว่าง 0xFFFF /
+// เซนเซอร์ช่องนั้นไม่ได้ลากผ่านเส้น) คืน 0 = พื้น (เดิม map() หารด้วยศูนย์ → อ่านเป็นเส้นทุกช่อง)
+static int16_t calibMap(int raw, int mn, int mx) {
+  if (mx <= mn) return 0;
+  raw = constrain(raw, mn, mx);
+  if (LineColor == 0) return map(raw, mn, mx, 1000, 0);
+  return map(raw, mn, mx, 0, 1000);
+}
+
+
 void ReadCalibrateF() {
   ReadF();
   for (int i = 0; i < NUM_SENSORS; i++) {
-    F[i] = constrain(F[i], minValueF[F_PIN[i]], maxValueF[F_PIN[i]]);
-    int16_t x;
-    if (LineColor == 0)
-      x = map(F[i], minValueF[F_PIN[i]], maxValueF[F_PIN[i]], 1000, 0);
-    else
-      x = map(F[i], minValueF[F_PIN[i]], maxValueF[F_PIN[i]], 0, 1000);
+    int16_t x = calibMap(F[i], minValueF[F_PIN[i]], maxValueF[F_PIN[i]]);
     if (x < FRONT_MIN) x = 0;
     if (x > FRONT_MAX) x = 1000;
     F[i] = x;
@@ -532,12 +558,7 @@ void ReadCalibrateC() {
   ReadC();
 
   for (int i = 0; i < 2; i++) {
-    C[i] = constrain(C[i], minValueC[i], maxValueC[i]);
-    int16_t x;
-    if (LineColor == 0)
-      x = map(C[i], minValueC[i], maxValueC[i], 1000, 0);
-    else
-      x = map(C[i], minValueC[i], maxValueC[i], 0, 1000);
+    int16_t x = calibMap(C[i], minValueC[i], maxValueC[i]);
     if (x < CENTER_MIN) x = 0;
     if (x > CENTER_MAX) x = 1000;
     C[i] = x;
@@ -548,12 +569,7 @@ void ReadCalibrateB() {
   ReadB();
 
   for (int i = 0; i < NUM_SENSORS; i++) {
-    B[i] = constrain(B[i], minValueB[B_PIN[i]], maxValueB[B_PIN[i]]);
-    int16_t x;
-    if (LineColor == 0)
-      x = map(B[i], minValueB[B_PIN[i]], maxValueB[B_PIN[i]], 1000, 0);
-    else
-      x = map(B[i], minValueB[B_PIN[i]], maxValueB[B_PIN[i]], 0, 1000);
+    int16_t x = calibMap(B[i], minValueB[B_PIN[i]], maxValueB[B_PIN[i]]);
     if (x < BACK_MIN) x = 0;
     if (x > BACK_MAX) x = 1000;
     B[i] = x;

@@ -1,5 +1,8 @@
 #ifndef MYRP_PICO2_MINI_MOTOR_H
 #define MYRP_PICO2_MINI_MOTOR_H
+// โมดูลที่ไฟล์นี้ใช้ (include ซ้ำได้ มี guard) → include ไฟล์นี้เดี่ยว ๆ หรือสลับลำดับได้
+#include "MyRP_Pico2_mini_BNO086_Decl.h"
+#include "MyRP_Pico2_mini_BNO086_Buzzer.h"
 
 /*
  * MyRP_Pico2_mini_BNO086_Motor.h
@@ -135,7 +138,10 @@ void MotorStop(int t) {
 void MotorShot(int t = 3, int power = 90) {
   static unsigned long lastShot = 0;
   unsigned long now = millis();
-  if (now - lastShot < 50) return;  // cooldown กันเบรกซ้อนถี่เกินไป
+  if (now - lastShot < 50) {  // cooldown กันเบรกซ้อนถี่เกินไป
+    MotorStop();              // ไม่ช็อตเบรกซ้ำ แต่ต้องหยุดมอเตอร์ ไม่ปล่อยวิ่งด้วยคำสั่งก่อนหน้า
+    return;
+  }
   lastShot = now;
 
   updateBattery();
@@ -182,34 +188,107 @@ int delay_break_b_table[10] = { 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 };
 #define SPD_90 8
 #define SPD_100 9
 
+// แปลง ch เป็นดัชนีตาราง 0-9: รับ SPD_10..SPD_100 (0-9) และรับเลขความเร็วตรง ๆ 10, 20, ..., 100 ด้วย
+// (เดิมใส่ 10-100 จะเขียนเกินขอบอาร์เรย์ทับตัวแปรอื่นแบบเงียบ ๆ) | ค่าอื่นคืน -1 = ไม่บันทึก
+static int speedTableIndex(int ch) {
+  if (ch >= SPD_10 && ch <= SPD_100) return ch;
+  if (ch >= 10 && ch <= 100 && ch % 10 == 0) return ch / 10 - 1;
+  Serial.print("Speed table: invalid index ");
+  Serial.println(ch);
+  return -1;
+}
+
 void setBalanceSpeed(int ch, int spdL, int spdR) {
-  L[ch] = spdL;
-  R[ch] = spdR;
+  int i = speedTableIndex(ch);
+  if (i < 0) return;
+  L[i] = spdL;
+  R[i] = spdR;
 }
 
 void setBalanceBackSpeed(int ch, int spdL, int spdR) {
-  BL[ch] = spdL;
-  BR[ch] = spdR;
+  int i = speedTableIndex(ch);
+  if (i < 0) return;
+  BL[i] = spdL;
+  BR[i] = spdR;
 }
 
 void Set_KP_KD(int ch, float kp, float kd) {
-  KP[ch] = kp;
-  KD[ch] = kd;
+  int i = speedTableIndex(ch);
+  if (i < 0) return;
+  KP[i] = kp;
+  KD[i] = kd;
 }
 
 void Set_KP_KD_Back(int ch, float kp, float kd) {
-  KP_Back[ch] = kp;
-  KD_Back[ch] = kd;
+  int i = speedTableIndex(ch);
+  if (i < 0) return;
+  KP_Back[i] = kp;
+  KD_Back[i] = kd;
 }
 
 void SetDelayBreak(int ch, int delay_f, int delay_b) {
-  delay_break_f_table[ch] = delay_f;
-  delay_break_b_table[ch] = delay_b;
+  int i = speedTableIndex(ch);
+  if (i < 0) return;
+  delay_break_f_table[i] = delay_f;
+  delay_break_b_table[i] = delay_b;
 }
+
+// ---------- Safety timeout ของลูปวิ่งหาเส้น / เซนเซอร์ (LINE_WHILE) ----------
+// ลูป while(1) ที่รอเจอเส้น / ระยะ (ff, bb, ToCenter, TurnLeft, spinl, balancef, TrackSelect ...)
+// ถ้าหุ่นหลุดเส้น / ติดขอบ / ล้อฟรี จะวนไม่จบและจ่ายไฟมอเตอร์ค้าง → ตั้งเวลาสูงสุดต่อ 1 ลูปได้
+// set_line_timeout(ms [, halt]) | ms = 0 ปิด (ค่าเริ่มต้น = พฤติกรรมเดิมทุกอย่าง)
+//   halt = true (ค่าเริ่มต้น): หยุดมอเตอร์แล้วค้างไว้ บี๊บเตือนทุก 1 วินาที จนกด reset (ปลอดภัยสุด)
+//   halt = false: หยุดมอเตอร์ บี๊บสั้น แล้วออกจากลูปไปทำคำสั่งถัดไป
+// ตั้งให้นานกว่าลูปที่ยาวที่สุดในภารกิจพอสมควร เช่น 8000-15000 ms
+uint32_t line_timeout_ms = 0;
+bool line_timeout_halt = true;
+uint32_t line_timeout_count = 0;  // จำนวนครั้งที่ timeout ทำงาน (ไว้ debug)
+
+void set_line_timeout(uint32_t ms, bool halt = true) {
+  line_timeout_ms = ms;
+  line_timeout_halt = halt;
+}
+
+struct LineGuard {
+  uint32_t t0;
+};
+
+LineGuard lineGuardStart() {
+  LineGuard g;
+  g.t0 = millis();
+  return g;
+}
+
+// คืน true = หมดเวลา (หยุดมอเตอร์ให้แล้ว) | โหมด halt จะไม่คืนค่า (ค้างจนกด reset)
+bool lineGuardExpired(LineGuard &g) {
+  if (line_timeout_ms == 0 || millis() - g.t0 <= line_timeout_ms) return false;
+  MotorStop();
+  BZoff();
+  line_timeout_count++;
+  Serial.println("Line timeout: line / sensor not found -> motor stop");
+  if (line_timeout_halt) {
+    Serial.println("Robot halted. Press reset.");
+    while (1) {
+      MotorStop();
+      digitalWrite(LED_BUILTIN, HIGH);
+      Beep(200);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(800);
+    }
+  }
+  Beep(100);
+  return true;
+}
+
+// ใช้แทน while (1) ในลูปวิ่งหาเส้น: break / continue ใช้ได้เหมือนเดิม
+// (ชื่อตัวแปร guard ต่อท้ายด้วยเลขบรรทัด → ลูปซ้อนกันแต่ละชั้นมี guard ของตัวเอง ไม่บังชื่อกัน)
+#define LINE_GUARD_CAT2(a, b) a##b
+#define LINE_GUARD_CAT(a, b) LINE_GUARD_CAT2(a, b)
+#define LINE_GUARD_VAR LINE_GUARD_CAT(lg_, __LINE__)
+#define LINE_WHILE for (LineGuard LINE_GUARD_VAR = lineGuardStart(); !lineGuardExpired(LINE_GUARD_VAR);)
 
 int LastError_F, LastError_B;            // ค่า error ก่อนหน้าของ PIDF / PIDB
 int LastError_F_none, LastError_B_none;  // ค่า error ก่อนหน้าของ PID แบบ _none
-void resetGyroRunError();                // อยู่ใน Gyro.h: รีเซ็ต previous_errorG / previous_errorGB
 
 // เลือกชุดค่าความเร็ว/PID ตามช่วงของ BaseSpeed (ปัดขึ้นเป็นสิบ เช่น 35 ใช้ชุดของ 40)
 // เดิมเป็น if/else 10 ชุดที่โครงสร้างเหมือนกันทุกอัน ต่างแค่ index ตาราง จึงรวมเป็นสูตรเดียว:

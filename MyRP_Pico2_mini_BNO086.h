@@ -33,20 +33,32 @@ void RobotSetup() {
   Wire.setSDA(4);
   Wire.setSCL(5);
 
-  // ตั้งเป็น GPIO ชั่วคราวเพื่อ clock pulses
-  pinMode(4, OUTPUT);  // SDA
-  pinMode(5, OUTPUT);  // SCL
-  digitalWrite(4, HIGH);
-  digitalWrite(5, HIGH);
+  // I2C bus recovery แบบ open-drain: "ดึงลง" = OUTPUT LOW, "ปล่อย" = INPUT_PULLUP
+  // (เดิมขับ SDA เป็น HIGH แบบ push-pull จะชนกับ slave ที่ดึง SDA ค้างไว้ต่ำ)
+  pinMode(4, INPUT_PULLUP);  // SDA ปล่อย
+  pinMode(5, INPUT_PULLUP);  // SCL ปล่อย
   delay(10);
 
-  // ส่ง 9-10 clock pulses เพื่อเคลียร์ slave ที่อาจค้าง
+  // ส่ง 10 clock pulses ที่ SCL เพื่อให้ slave ที่ค้างกลางไบต์ส่งบิตที่เหลือจนปล่อย SDA
   for (int i = 0; i < 10; i++) {
+    pinMode(5, OUTPUT);
     digitalWrite(5, LOW);
     delayMicroseconds(5);
-    digitalWrite(5, HIGH);
+    pinMode(5, INPUT_PULLUP);
     delayMicroseconds(5);
   }
+
+  // ส่ง STOP condition: SCL ต่ำ → SDA ต่ำ → ปล่อย SCL → ปล่อย SDA (SDA ขึ้นตอน SCL สูง)
+  pinMode(5, OUTPUT);
+  digitalWrite(5, LOW);
+  delayMicroseconds(5);
+  pinMode(4, OUTPUT);
+  digitalWrite(4, LOW);
+  delayMicroseconds(5);
+  pinMode(5, INPUT_PULLUP);
+  delayMicroseconds(5);
+  pinMode(4, INPUT_PULLUP);
+  delayMicroseconds(5);
 
   // ปล่อย bus เป็น input (pull-up จะดึง HIGH)
   pinMode(4, INPUT);
@@ -100,10 +112,13 @@ void RobotSetup() {
     Beep(500);
   } else {
     Serial.println("BNO08x found!");
+    // ต้องตั้ง 100 kHz ก่อนเปิด report / อ่านมุม (เหตุผลดูคอมเมนต์ด้านล่าง)
+    Wire.setClock(100000);
+    // เปิด Game Rotation Vector (ค่าเริ่มต้น) + เช็ก wasReset + warm-up 500ms ให้ฟิลเตอร์นิ่ง
+    // แล้วตั้ง 0° จากค่าเฉลี่ยที่นิ่งแล้ว (sw() จะตั้ง 0° ใหม่อีกครั้งด้วย resetAngles() ตอนกดปล่อยตัว)
+    gyroBegin(500);
   }
 
-  myIMU.enableRotationVector(5);  // ตั้งค่าให้ BNO08x ส่งข้อมูล rotation vector ทุก 5ms (200Hz)
-  resetYaw();
   // ตั้งความเร็ว I2C หลังสุด เพราะ bat.begin()/bno08xBegin() เรียก Wire.begin() ซ้ำข้างใน
   // ซึ่งจะรีเซ็ตความเร็วบัสกลับเป็นค่าเริ่มต้น ถ้าตั้งไว้ก่อนหน้านี้จะโดนทับ
   // ต้องใช้ 100 kHz: ทดสอบแล้วที่ 400 kHz BNO086 ไม่ส่งข้อมูลมุมมาเลย (IMU reports ค้างที่ 0)
@@ -165,7 +180,7 @@ void sw() {
     bat.update_led();
     updateBattery();
     float voltage = getBatteryVoltage();  // เตือนเมื่อแบตต่ำกว่า 11.0V แต่ยังไม่ถึงขั้นวิกฤติ
-    if (voltage <= 11.0 && voltage > 7.0) {
+    if (voltage <= 11.0f && voltage > 7.0f) {
       unsigned long now = millis();
       // ส่งเสียงทุก 3 วินาที (3000 ms)
       if (now - lastBuzz >= 3000) {
@@ -234,7 +249,7 @@ void sw() {
     Serial.print(analogRead(27));
     Serial.print(" ");
     Serial.print("   Gyro: ");
-    Serial.print(gyroZ());  // มุม Yaw ช่วง -180..180
+    Serial.print(angleReadLatest());  // มุม Yaw ล่าสุด (ล้างคิวที่ค้างระหว่างรอ 100ms)
     Serial.print("   Batt: ");
     updateBattery();
     Serial.print(getBatteryVoltage(), 2);  // แรงดันแบต (V) ที่กรองแล้ว
@@ -294,6 +309,11 @@ void sw() {
   loadCalibration_LOCAL();
   tone(9, 3000, 400);
   delay(500);
+
+  // ตั้ง 0° ใหม่ตอนปล่อยตัว: หุ่นถูกยกคาลิเบรต / วางที่จุดเริ่มหลังเปิดเครื่อง ทิศตอนบูตจึงใช้อ้างอิงไม่ได้
+  // (ทางแยก *g / *gb ที่ล็อกแกน 90° (snap90) และคำสั่งตามทิศ DIR_* อ้างอิงจากจุดนี้)
+  // resetAngles() หยุดมอเตอร์ รอ 200ms ให้นิ่งจากแรงกดปุ่ม แล้วอ่านมุมจนนิ่งก่อนตั้ง 0°
+  if (gyro_imu_ready) resetAngles();
 }
 
 #endif  // MYRP_PICO2_MINI_H

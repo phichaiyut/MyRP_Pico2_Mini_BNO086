@@ -14,6 +14,9 @@ const float BatteryMonitor::V_EMPTY = 11.0f;
 const float BatteryMonitor::V_MIN_VALID = 6.0f;
 const float BatteryMonitor::V_STEP = (V_FULL - V_EMPTY) / 7.0f;
 
+// ADS1115: OS=1, MUX=000 (AIN0-AIN1 differential), PGA=010 (±2.048V), continuous, 475 SPS, comparator off
+// หมายเหตุ: สูตรใน update() ใช้สเกล 4.096V แต่ CAL_SCALE / CAL_OFFSET คาลิเบรตจากการวัดจริงชดเชยไว้แล้ว
+// ถ้าเปลี่ยน PGA ต้องคาลิเบรต CAL_SCALE / CAL_OFFSET ใหม่
 const uint16_t BatteryMonitor::ADC_CONFIG = 0x84C3;
 
 // Constructor
@@ -51,7 +54,7 @@ void BatteryMonitor::setDebug(bool enable) {
 void BatteryMonitor::update() {
   unsigned long now = millis();
 
-  if (now - _lastUpdate < 100) return;  // อ่านจริงทุก 150ms
+  if (now - _lastUpdate < 100) return;  // อ่านจริงทุก 100ms
   _lastUpdate = now;
 
   // อ่าน ADC แบบเร็ว
@@ -68,7 +71,7 @@ void BatteryMonitor::update() {
 void BatteryMonitor::update_led() {
   unsigned long now = millis();
 
-  if (now - _lastUpdate < 100) return;  // อ่านจริงทุก 150ms
+  if (now - _lastUpdate < 100) return;  // อ่านจริงทุก 100ms
   _lastUpdate = now;
 
   // อ่าน ADC แบบเร็ว
@@ -125,7 +128,11 @@ int16_t BatteryMonitor::readADCConversion() {
 
   if (Wire.requestFrom(ADS_ADDR, (uint8_t)2) != 2) return -1;
 
-  return (Wire.read() << 8) | Wire.read();
+  // อ่านทีละไบต์ลงตัวแปรก่อน: ใน (Wire.read() << 8) | Wire.read() มาตรฐาน C++
+  // ไม่รับประกันว่าตัวซ้ายถูกเรียกก่อน ไบต์สูง/ต่ำอาจสลับกัน
+  uint8_t hi = Wire.read();
+  uint8_t lo = Wire.read();
+  return (int16_t)((hi << 8) | lo);
 }
 
 void BatteryMonitor::updateLEDs() {
@@ -145,6 +152,7 @@ void BatteryMonitor::updateLEDs() {
   writePCF(pattern);
 }
 
+// เตือนแบตต่ำทุก 3 วินาที (เว้นช่วงไม่ block แต่ตัวเสียงเองมี delay ~200ms ต่อครั้ง)
 void BatteryMonitor::buzzerAlertNonBlocking() {
   unsigned long now = millis();
   if (now - _lastBuzz < 3000) return;

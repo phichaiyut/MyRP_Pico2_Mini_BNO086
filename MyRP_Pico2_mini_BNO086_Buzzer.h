@@ -1,5 +1,7 @@
 #ifndef MYRP_PICO2_MINI_BUZZER_H
 #define MYRP_PICO2_MINI_BUZZER_H
+// โมดูลที่ไฟล์นี้ใช้ (include ซ้ำได้ มี guard) → include ไฟล์นี้เดี่ยว ๆ หรือสลับลำดับได้
+#include <Arduino.h>
 
 /*
  * MyRP_Pico2_mini_BNO086_Buzzer.h
