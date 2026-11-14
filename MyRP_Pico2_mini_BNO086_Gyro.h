@@ -1281,14 +1281,14 @@ void ToBackG() {
 // ======================================================================
 
 void TrackSelectG(int spd, char select) {
-  if (select == 'L') {
+  if (select == 'l') {
     spindegree(-90);
-  } else if (select == 'l') {
+  } else if (select == 'L') {
     ToCenterG();
     spindegree(-90);
-  } else if (select == 'R') {
-    spindegree(90);
   } else if (select == 'r') {
+    spindegree(90);
+  } else if (select == 'R') {
     ToCenterG();
     spindegree(90);
   } else if (select == 'q') {
@@ -1436,14 +1436,14 @@ void TrackSelectG(int spd, char select) {
 }
 
 void TrackSelectGB(int spd, char select) {
-  if (select == 'L') {
+  if (select == 'l') {
     spindegree(-90);
-  } else if (select == 'l') {
+  } else if (select == 'L') {
     BackCenterG();
     spindegree(-90);
-  } else if (select == 'R') {
-    spindegree(90);
   } else if (select == 'r') {
+    spindegree(90);
+  } else if (select == 'R') {
     BackCenterG();
     spindegree(90);
   } else if (select == 'q') {
