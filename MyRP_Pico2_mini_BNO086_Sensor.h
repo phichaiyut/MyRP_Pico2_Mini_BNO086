@@ -163,14 +163,17 @@ void calibrateA() {
     sensorMaxA[i] = 0;
     sensorMinA[i] = 1023;  // MCP3008 = 10 บิต
   }
+  CalTickBegin();  // ติ๊ด 3000 Hz 50 ms ทุก 300 ms ระหว่างเก็บค่า (ไม่บล็อก ไม่ลดจำนวน sample)
   for (int s = 0; s < samples; s++) {
     for (int i = 0; i < 8; i++) {
       int v = read_sensorA(i);
       if (v > sensorMaxA[i]) sensorMaxA[i] = v;
       if (v < sensorMinA[i]) sensorMinA[i] = v;
+      CalTickUpdate();
       delay(1);
     }
   }
+  CalTickEnd();
 
   // บันทึกลง EEPROM
   byte buf[16];
@@ -186,9 +189,7 @@ void calibrateA() {
   }
   writeEEPROM(EEPROM_ADDRESS, 16, buf, 16);
 
-  beep(3000, 100);
-  delay(150);
-  beep(3000, 200);
+  SoundSuccess();  // บันทึกลง EEPROM แล้ว: 3500 Hz 250 ms × 2 (แบบต้นฉบับ)
   Serial.println("✓ Calibrate Sensor A เสร็จสิ้น");
 }
 
@@ -226,14 +227,17 @@ void calibrateB() {
     sensorMaxB[i] = 0;
     sensorMinB[i] = 1023;  // MCP3008 = 10 บิต
   }
+  CalTickBegin();  // ติ๊ด 3000 Hz 50 ms ทุก 300 ms ระหว่างเก็บค่า (ไม่บล็อก ไม่ลดจำนวน sample)
   for (int s = 0; s < samples; s++) {
     for (int i = 0; i < 8; i++) {
       int v = read_sensorB(i);
       if (v > sensorMaxB[i]) sensorMaxB[i] = v;
       if (v < sensorMinB[i]) sensorMinB[i] = v;
+      CalTickUpdate();
       delay(1);
     }
   }
+  CalTickEnd();
 
   byte buf[16];
   for (int i = 0; i < 8; i++) {
@@ -248,9 +252,7 @@ void calibrateB() {
   }
   writeEEPROM(EEPROM_ADDRESS, 48, buf, 16);
 
-  beep(3000, 100);
-  delay(150);
-  beep(3000, 200);
+  SoundSuccess();  // บันทึกลง EEPROM แล้ว: 3500 Hz 250 ms × 2 (แบบต้นฉบับ)
   Serial.println("✓ Calibrate Sensor B เสร็จสิ้น");
 }
 
@@ -287,14 +289,17 @@ void calibrateC() {
     sensorMaxC[i] = 0;
     sensorMinC[i] = 4095;  // ADC ในบอร์ด = 12 บิต
   }
+  CalTickBegin();  // ติ๊ด 3000 Hz 50 ms ทุก 300 ms ระหว่างเก็บค่า (ไม่บล็อก ไม่ลดจำนวน sample)
   for (int s = 0; s < samples; s++) {
     for (int i = 0; i < 2; i++) {
       int v = analogRead(C_PIN[i]);
       if (v > sensorMaxC[i]) sensorMaxC[i] = v;
       if (v < sensorMinC[i]) sensorMinC[i] = v;
     }
+    CalTickUpdate();
     delay(5);
   }
+  CalTickEnd();
 
   for (int i = 0; i < 2; i++) {
     sensorMaxC[i] = constrain(sensorMaxC[i], 0, 4000);
@@ -314,9 +319,7 @@ void calibrateC() {
   }
   writeEEPROM(EEPROM_ADDRESS, 68, buf, 4);
 
-  beep(3000, 150);
-  delay(200);
-  beep(3000, 200);
+  SoundSuccess();  // บันทึกลง EEPROM แล้ว: 3500 Hz 250 ms × 2 (แบบต้นฉบับ)
   Serial.println("✓ Calibrate Sensor C เสร็จสิ้น");
 }
 

@@ -29,46 +29,27 @@
 
 void RobotSetup() {
   Serial.begin(115200);
+  // USB Serial ทิ้งข้อความถ้ายังไม่ได้เปิด Serial Monitor → รอสูงสุด 3 วินาที ให้เห็นข้อความวินิจฉัยตอนบูต
+  unsigned long serialWait = millis();
+  while (!Serial && millis() - serialWait < 3000) delay(10);
   delay(100);
-  Wire.setSDA(4);
-  Wire.setSCL(5);
 
-  // I2C bus recovery แบบ open-drain: "ดึงลง" = OUTPUT LOW, "ปล่อย" = INPUT_PULLUP
-  // (เดิมขับ SDA เป็น HIGH แบบ push-pull จะชนกับ slave ที่ดึง SDA ค้างไว้ต่ำ)
-  pinMode(4, INPUT_PULLUP);  // SDA ปล่อย
-  pinMode(5, INPUT_PULLUP);  // SCL ปล่อย
-  delay(10);
+  // ---------- วินิจฉัยบัส I2C ตอนบูต ----------
+  // อ่านสาย SDA/SCL ก่อนเริ่ม Wire: ปล่อยว่างแล้วต้องเป็น HIGH ทั้งคู่
+  // LOW = มีชิปดึงบัสค้าง / สายช็อต / ไม่มี pull-up → ไม่ใช่ปัญหา address ในโค้ด
+  bool sdaHigh, sclHigh;
+  i2cReadLines(sdaHigh, sclHigh);
+  Serial.print("I2C lines before init: SDA(GP4)=");
+  Serial.print(sdaHigh ? "HIGH" : "LOW !!");
+  Serial.print("  SCL(GP5)=");
+  Serial.println(sclHigh ? "HIGH" : "LOW !!");
 
-  // ส่ง 10 clock pulses ที่ SCL เพื่อให้ slave ที่ค้างกลางไบต์ส่งบิตที่เหลือจนปล่อย SDA
-  for (int i = 0; i < 10; i++) {
-    pinMode(5, OUTPUT);
-    digitalWrite(5, LOW);
-    delayMicroseconds(5);
-    pinMode(5, INPUT_PULLUP);
-    delayMicroseconds(5);
+  // กู้บัส (9-10 clock + STOP) แล้วเริ่ม Wire พร้อม clock 100 kHz + timeout 25 ms
+  if (!i2cBusRecover()) {
+    Serial.println("I2C bus still stuck after recovery! SCL LOW = a chip holds the clock -> power-cycle the robot / check wiring");
   }
 
-  // ส่ง STOP condition: SCL ต่ำ → SDA ต่ำ → ปล่อย SCL → ปล่อย SDA (SDA ขึ้นตอน SCL สูง)
-  pinMode(5, OUTPUT);
-  digitalWrite(5, LOW);
-  delayMicroseconds(5);
-  pinMode(4, OUTPUT);
-  digitalWrite(4, LOW);
-  delayMicroseconds(5);
-  pinMode(5, INPUT_PULLUP);
-  delayMicroseconds(5);
-  pinMode(4, INPUT_PULLUP);
-  delayMicroseconds(5);
-
-  // ปล่อย bus เป็น input (pull-up จะดึง HIGH)
-  pinMode(4, INPUT);
-  pinMode(5, INPUT);
-  delay(10);
-
-  // เริ่ม I2C ใหม่
-  Wire.begin();
-
-  bat.begin();
+  bat.begin();  // เรียก Wire.begin() ซ้ำข้างใน (Wire ทำงานอยู่แล้วจึงไม่มีผล) แล้วอ่าน ADS1115
   analogReadResolution(12);
   analogWriteResolution(12);
   analogWriteFreq(DC_Motors ? 1000 : 20000);
@@ -91,18 +72,15 @@ void RobotSetup() {
 
   loadCalibration();
   loadCalibration_LOCAL();
-  // ลองหา BNO08x ซ้ำได้ไม่เกิน 10 วินาที ถ้าไม่เจอให้ทำงานต่อโดยไม่มี gyro
-  bool imuFound = false;
-  unsigned long imuStart = millis();
-  while (millis() - imuStart < 10000) {
-    if (myIMU.begin(0x4A, Wire, -1, -1) || myIMU.begin(0x4B, Wire, -1, -1)) {
-      imuFound = true;
-      break;
-    }
-    delay(100);
-  }
-  if (!imuFound) {
-    Serial.println("BNO08x not detected at 0x4A or 0x4B. Check your jumpers and the hookup guide.");
+  // พิมพ์อุปกรณ์ I2C ที่เจอทั้งหมด (คาดว่า 0x20 PCF8574, 0x48 ADS1115, 0x4A/0x4B BNO08x, 0x50 EEPROM, 0x68 MCP3421)
+  i2cScan();
+
+  // หา BNO08x ที่ 0x4A แล้ว 0x4B (probe ก่อน ไม่เจอ = NACK ทันที) ลองซ้ำได้ไม่เกิน 3 วินาที
+  // ไม่เจอ → ทำงานต่อโดยไม่มี gyro: ฟังก์ชันอ่านมุมคืนค่าเดิมทันที และลองต่อใหม่เองทุก 2 วินาที
+  uint8_t imuAddr = imuDetect(3000);
+  if (imuAddr == 0) {
+    Serial.println("!!! BNO08x NOT detected at 0x4A or 0x4B !!!");
+    Serial.println("    -> check IMU power/wiring (SDA=GP4, SCL=GP5) and the scan list above");
     Beep(500);
     delay(200);
     Beep(500);
@@ -111,21 +89,19 @@ void RobotSetup() {
     delay(200);
     Beep(500);
   } else {
-    Serial.println("BNO08x found!");
-    // ต้องตั้ง 100 kHz ก่อนเปิด report / อ่านมุม (เหตุผลดูคอมเมนต์ด้านล่าง)
-    Wire.setClock(100000);
+    Serial.print("BNO08x found at 0x");
+    Serial.println(imuAddr, HEX);
+    i2cApplyConfig();  // ต้องเป็น 100 kHz ก่อนเปิด report / อ่านมุม (400 kHz มุมไม่มา)
     // เปิด Game Rotation Vector (ค่าเริ่มต้น) + เช็ก wasReset + warm-up 500ms ให้ฟิลเตอร์นิ่ง
-    // แล้วตั้ง 0° จากค่าเฉลี่ยที่นิ่งแล้ว
-    gyroBegin(500);
-    // ตั้ง 0° ให้ครบทุกตัวแปร (current_degree, error ของ PID ไจโร, สถานะ runG) = ทิศตอนเปิดเครื่อง
-    // sw() ไม่ตั้ง 0° ใหม่ — ถ้าต้องการให้ทิศตอนปล่อยตัวเป็น 0° ให้เรียก resetAngles() เองหลัง sw()
-    resetAngles();
+    // แล้วตั้ง 0° จากค่าเฉลี่ยที่นิ่งแล้ว (sw() ไม่ตั้ง 0° ใหม่ — เรียก resetAngles() เองถ้าต้องการ)
+    bool gyroZeroOk = gyroBegin(500);
+    Serial.println(gyro_imu_ready ? "BNO08x reports OK" : "BNO08x stopped responding during warm-up!");
+    if (gyroZeroOk) SoundGyroReady();  // ตั้ง 0° สำเร็จ: 2093/2637/3136 Hz (แบบต้นฉบับ GyroReset)
   }
 
-  // ตั้งความเร็ว I2C หลังสุด เพราะ bat.begin()/bno08xBegin() เรียก Wire.begin() ซ้ำข้างใน
-  // ซึ่งจะรีเซ็ตความเร็วบัสกลับเป็นค่าเริ่มต้น ถ้าตั้งไว้ก่อนหน้านี้จะโดนทับ
-  // ต้องใช้ 100 kHz: ทดสอบแล้วที่ 400 kHz BNO086 ไม่ส่งข้อมูลมุมมาเลย (IMU reports ค้างที่ 0)
-  Wire.setClock(100000);
+  // ย้ำ clock 100 kHz + timeout 25 ms (+ กู้บัสอัตโนมัติ) หลังสุด กันมีโค้ดใดตั้งทับไว้
+  // timeout เริ่มต้นของ Wire คือ 1000 ms ต่อทรานแซกชัน → ถ้าบัสค้าง sw() จะค้างรอบละหลายวินาที
+  i2cApplyConfig();
   blink(3);
   Serial.println("MyRP_Pico2 Class Ready for Competition!");
 }
@@ -163,20 +139,23 @@ int ADC_i2c() {
 
 void sw() {
   MotorStop();
-  tone(9, 2000, 100);  // โด
-  delay(100);
-  tone(9, 2400, 100);  // เร
-  delay(100);
-  tone(9, 3000, 160);  // มี
-  delay(500);
-  tone(9, 3000, 60);
-  delay(80);
-  tone(9, 3000, 60);
-  delay(80);
+  SoundWait();  // เข้าเมนู: 3500 Hz 120 ms × 2 (แบบต้นฉบับ MyMini_16Pro)
 
   unsigned long pressStartTime = 0;
   bool isPressed = false;
   unsigned long lastBuzz = 0;
+
+  // สรุปสถานะ I2C/IMU อีกครั้ง (เผื่อเปิด Serial Monitor หลังบูต จึงไม่เห็นข้อความตอน RobotSetup)
+  Serial.print("IMU: ");
+  if (imu_connected) {
+    Serial.print("BNO08x @ 0x");
+    Serial.println(imu_i2c_addr, HEX);
+  } else {
+    Serial.println("NO IMU (auto-retry every 2 s in this menu)");
+  }
+  i2cScan();
+  uint32_t lastYawSeen = yawSampleCount;
+  unsigned long lastYawSeenMs = millis();
 
   // ส่วนตรวจสอบปุ่ม + แสดงค่าเซนเซอร์
   while (true) {
@@ -203,8 +182,7 @@ void sw() {
     // ปุ่มบน (ปุ่ม 3) → Calibrate A
     if (digitalRead(3) == LOW) {
       digitalWrite(LED_BUILTIN, HIGH);
-      tone(9, 3000, 300);
-      calibrateA();
+      calibrateA();  // ติ๊ดเริ่มทันทีใน calibrateA() (ต้นฉบับไม่มีเสียงแยกตอนกด)
       saveCalibA_LOCAL();
       blink(5);
       delay(300);
@@ -217,8 +195,7 @@ void sw() {
       digitalWrite(LED_BUILTIN, LOW);
       delay(200);
       digitalWrite(LED_BUILTIN, HIGH);
-      tone(9, 3000, 100);
-      calibrateB();
+      calibrateB();  // ติ๊ดเริ่มทันทีใน calibrateB()
       saveCalibB_LOCAL();
       digitalWrite(LED_BUILTIN, LOW);
       delay(100);
@@ -252,7 +229,15 @@ void sw() {
     Serial.print(analogRead(27));
     Serial.print(" ");
     Serial.print("   Gyro: ");
-    Serial.print(angleReadLatest());  // มุม Yaw ล่าสุด (ล้างคิวที่ค้างระหว่างรอ 100ms)
+    imuTryReconnect();                  // ไม่มี IMU → ลองต่อใหม่ทุก 2 วินาที (มอเตอร์หยุดอยู่ในเมนูนี้)
+    float yawShow = angleReadLatest();  // มุม Yaw ล่าสุด (ล้างคิวที่ค้างระหว่างรอ 100ms) | ไม่มี IMU = คืนทันที
+    if (yawSampleCount != lastYawSeen) {
+      lastYawSeen = yawSampleCount;
+      lastYawSeenMs = millis();
+    }
+    if (!imu_connected) Serial.print("NO IMU");
+    else if (millis() - lastYawSeenMs > 300) Serial.print("NO DATA");  // ต่ออยู่แต่ไม่มีมุมใหม่ส่งมา
+    else Serial.print(yawShow);
     Serial.print("   Batt: ");
     updateBattery();
     Serial.print(getBatteryVoltage(), 2);  // แรงดันแบต (V) ที่กรองแล้ว
@@ -275,9 +260,7 @@ void sw() {
           digitalWrite(LED_BUILTIN, LOW);
           delay(200);
           digitalWrite(LED_BUILTIN, HIGH);
-          tone(9, 3000, 100);
-          tone(9, 3000, 200);
-          calibrateC();
+          calibrateC();  // ติ๊ดเริ่มทันทีใน calibrateC()
           saveCalibC_LOCAL();
           digitalWrite(LED_BUILTIN, LOW);
           delay(100);
@@ -310,8 +293,7 @@ void sw() {
   // โหลดค่า calibration จาก EEPROM หลังออกจากเมนู
   loadCalibration();
   loadCalibration_LOCAL();
-  tone(9, 3000, 400);
-  delay(500);
+  SoundStart();  // ออกตัว: 3500 Hz 400 ms แล้วรอครบ 500 ms (แบบต้นฉบับ)
   // ไม่ตั้ง 0° ใหม่ที่นี่ — ถ้าต้องการให้ทิศตอนปล่อยตัวเป็น 0° ให้เรียก resetAngles() เองหลัง sw()
 }
 

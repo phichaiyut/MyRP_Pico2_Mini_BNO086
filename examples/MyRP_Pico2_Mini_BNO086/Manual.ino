@@ -517,6 +517,18 @@
 // arm_open_down();   arm_down_open();   arm_open_up();      arm_up_open();
 // arm_down_close();  arm_close_down();  arm_up_close();     arm_close_up();
 // arm_big();         arm_big_box();     arm_big_box_up();   arm_behihd();
+//
+// --- เซอร์โวแบบไม่บล็อก ขยับนุ่มเบื้องหลัง (ไม่หยุดมอเตอร์ ไม่ delay → สั่งแล้ววิ่งตามเส้นต่อได้ทันที) ---
+// speed = องศา/วินาที (60-90 นุ่มมาก, 120-180 ปกติ) | ดูตัวอย่าง examples/ServoSmooth_LineFollow
+// ServoMove(pin, angle [, speed]);                 // ตัวเดียว (ค่าเริ่มต้น 120 องศา/วินาที)
+// armupdown_smooth(angle, speed);                  // แขนขึ้น-ลง
+// arm_left_right_smooth(l, r, speed);              // มือซ้าย-ขวา ถึงเป้าพร้อมกัน
+// Servo_smooth(a, b, c, speed);                    // 3 ตัวพร้อมกัน ลำดับเดียวกับ Servo(a, b, c)
+// ServoBusy();  ServoBusy(pin);                    // ยังขยับอยู่ไหม
+// ServoWait([timeoutMs]);                          // รอจนถึงเป้า (ไม่แตะมอเตอร์)
+// ServoHold(pin);   ServoAngle(pin);               // หยุดค้างที่มุมปัจจุบัน / อ่านมุมปัจจุบัน
+// SetServoAccel(dps2);                             // ทางลาดเร่ง/หน่วง (ค่าเริ่มต้น 400, 0 = ไม่มี)
+// SetServoAutoSpeed(speed);                        // ให้ Servo()/armupdown()/arm_left_right() เดิมขยับนุ่มเอง (0 = ปิด)
 
 
 /* ==========================================================================

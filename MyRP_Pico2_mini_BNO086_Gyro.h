@@ -135,8 +135,197 @@ float wrap180(float a) {
 uint8_t gyro_report_mode = GYRO_MODE_GAME_RV;
 uint16_t gyro_report_interval_ms = 5;  // รอบส่งมุม (ms) 5 = 200Hz หน่วงน้อย หมุนไม่เลยมุม | 10 = 100Hz
 bool gyro_imu_ready = false;            // true หลัง gyroBegin() เจอ BNO08x
+bool &imu_connected = gyro_imu_ready;   // ชื่อเรียกอีกชื่อของแฟล็กเดียวกัน (ไม่มีสองแฟล็กที่ค่าไม่ตรงกัน)
 uint32_t gyro_reset_count = 0;          // จำนวนครั้งที่ BNO08x รีเซ็ตตัวเอง (ไว้ debug)
 bool gyro_rebase_pending = false;       // true = เพิ่งรีเซ็ต รอค่ามุมแรกเพื่อต่อมุมเดิม (ดู updateYawFromEvent)
+
+// ---------- บัส I2C (Wire) ----------
+// Wire ของ arduino-pico มี timeout เริ่มต้น 1000 ms ต่อ "หนึ่งทรานแซกชัน" และไม่กู้บัสเอง
+// ถ้าบัสค้าง (มีชิปดึง SDA/SCL ต่ำไว้) ทุกคำสั่ง I2C จะค้างครั้งละ 1 วินาที → ลูป sw() ค้าง ~6 วินาที
+// จึงตั้ง timeout สั้น + ให้ core กู้บัสอัตโนมัติเมื่อ timeout (Wire.setTimeout(ms, true))
+#define I2C_SDA_PIN 4  // GP4 = I2C0 SDA
+#define I2C_SCL_PIN 5  // GP5 = I2C0 SCL
+uint32_t i2c_clock_hz = 100000;  // 100 kHz: BNO086 ใช้ clock stretching, 400 kHz ทดสอบแล้วมุมไม่มา
+uint32_t i2c_timeout_ms = 25;    // อ่านทีละ 32 ไบต์ที่ 100 kHz ใช้ ~3 ms → 25 ms เผื่อ clock stretching แล้ว
+
+// ตั้ง clock + timeout ของ Wire (เรียกซ้ำได้ทุกครั้งหลัง Wire.begin())
+void i2cApplyConfig() {
+  Wire.setClock(i2c_clock_hz);
+  Wire.setTimeout(i2c_timeout_ms, true);  // true = timeout แล้วให้ core reset + กู้บัสเอง
+}
+
+// อ่านสถานะสาย SDA/SCL ตอนปล่อยว่าง (ต้องเป็น HIGH ทั้งคู่) — ต้องเรียกตอน Wire ยังไม่ทำงาน
+void i2cReadLines(bool &sdaHigh, bool &sclHigh) {
+  pinMode(I2C_SDA_PIN, INPUT_PULLUP);
+  pinMode(I2C_SCL_PIN, INPUT_PULLUP);
+  delayMicroseconds(50);
+  sdaHigh = digitalRead(I2C_SDA_PIN) == HIGH;
+  sclHigh = digitalRead(I2C_SCL_PIN) == HIGH;
+}
+
+// I2C Bus Recovery แบบ open-drain แล้วเริ่ม Wire ใหม่ | คืน true ถ้าหลังกู้ SDA/SCL ว่าง (HIGH) ทั้งคู่
+// "ดึงลง" = OUTPUT LOW, "ปล่อย" = INPUT_PULLUP (ห้ามขับ HIGH แบบ push-pull ชนกับ slave)
+// หมายเหตุ: ถ้า SCL ถูกดึงต่ำค้าง (slave ค้าง clock stretching) master แก้ไม่ได้ ต้องตัดไฟ/รีเซ็ตชิป
+bool i2cBusRecover() {
+  Wire.end();  // ปล่อยขาจากฮาร์ดแวร์ I2C ก่อน (ถ้ายังไม่ begin จะไม่ทำอะไร)
+  bool sdaHigh, sclHigh;
+  i2cReadLines(sdaHigh, sclHigh);
+
+  // 9-10 clock ที่ SCL ให้ slave ที่ค้างกลางไบต์ส่งบิตที่เหลือจนปล่อย SDA
+  for (int i = 0; i < 10; i++) {
+    pinMode(I2C_SCL_PIN, OUTPUT);
+    digitalWrite(I2C_SCL_PIN, LOW);
+    delayMicroseconds(5);
+    pinMode(I2C_SCL_PIN, INPUT_PULLUP);
+    delayMicroseconds(5);
+  }
+  // STOP: SCL ต่ำ → SDA ต่ำ → ปล่อย SCL → ปล่อย SDA (SDA ขึ้นตอน SCL สูง)
+  pinMode(I2C_SCL_PIN, OUTPUT);
+  digitalWrite(I2C_SCL_PIN, LOW);
+  delayMicroseconds(5);
+  pinMode(I2C_SDA_PIN, OUTPUT);
+  digitalWrite(I2C_SDA_PIN, LOW);
+  delayMicroseconds(5);
+  pinMode(I2C_SCL_PIN, INPUT_PULLUP);
+  delayMicroseconds(5);
+  pinMode(I2C_SDA_PIN, INPUT_PULLUP);
+  delayMicroseconds(5);
+
+  i2cReadLines(sdaHigh, sclHigh);
+  Wire.setSDA(I2C_SDA_PIN);
+  Wire.setSCL(I2C_SCL_PIN);
+  Wire.begin();
+  i2cApplyConfig();
+  return sdaHigh && sclHigh;
+}
+
+// เช็กว่ามีอุปกรณ์ตอบ ACK ที่ address นี้ไหม (ไม่เจอ = NACK กลับทันที, บัสค้าง = รอไม่เกิน i2c_timeout_ms)
+bool i2cProbe(uint8_t addr) {
+  Wire.beginTransmission(addr);
+  return Wire.endTransmission() == 0;
+}
+
+const char *i2cDeviceName(uint8_t addr) {
+  switch (addr) {
+    case 0x20: return "PCF8574 (LED แบต)";
+    case 0x48: return "ADS1115 (วัดแบต)";
+    case 0x4A:
+    case 0x4B: return "BNO08x (IMU)";
+    case 0x50: return "EEPROM (คาลิเบรต)";
+    case 0x68: return "MCP3421 (ADC ปุ่ม)";
+    default: return "?";
+  }
+}
+
+// สแกนบัส I2C แล้วพิมพ์อุปกรณ์ที่เจอ | คืนจำนวนอุปกรณ์ที่เจอ
+// ถ้าเจอ timeout (บัสค้าง) จะหยุดสแกนทันที ไม่รอครบ 112 address
+int i2cScan() {
+  int found = 0;
+  Serial.println("I2C scan (SDA=GP4, SCL=GP5):");
+  for (uint8_t addr = 0x08; addr <= 0x77; addr++) {
+    Wire.clearTimeoutFlag();
+    bool ack = i2cProbe(addr);
+    if (Wire.getTimeoutFlag()) {
+      Serial.println("  I2C TIMEOUT -> bus stuck (SDA/SCL held LOW?) - scan aborted");
+      return found;
+    }
+    if (ack) {
+      Serial.print("  Found I2C device at 0x");
+      if (addr < 16) Serial.print('0');
+      Serial.print(addr, HEX);
+      Serial.print("  ");
+      Serial.println(i2cDeviceName(addr));
+      found++;
+    }
+  }
+  if (found == 0) Serial.println("  No I2C devices found! (check wiring / pull-ups / power)");
+  return found;
+}
+
+// ---------- เชื่อมต่อ BNO08x ----------
+uint8_t imu_i2c_addr = 0;           // address ที่เจอ BNO08x (0 = ยังไม่เคยเจอ)
+bool gyro_sh2_open = false;          // ไลบรารี SparkFun เปิด SHTP ได้ "ครั้งเดียว" ต้อง sh2_close() ก่อน begin ซ้ำ
+bool gyro_auto_reconnect = true;     // IMU หลุดแล้วให้ลองต่อใหม่เองเป็นระยะ
+uint32_t gyro_reconnect_interval_ms = 2000;
+uint8_t gyro_i2c_err_count = 0;      // I2C timeout ติดกันตอนอ่าน IMU
+uint32_t gyro_last_reconnect_ms = 0;
+
+// เรียก myIMU.begin() ที่ address เดียว แบบปลอดภัย: probe ก่อน (เร็ว), ปิด SHTP เดิมก่อนเปิดใหม่
+bool imuBeginAt(uint8_t addr) {
+  if (!i2cProbe(addr)) return false;  // ไม่มีใครตอบ → ไม่ต้องเรียก begin (ซึ่งช้า ~300+ ms)
+  if (gyro_sh2_open) {
+    sh2_close();
+    gyro_sh2_open = false;
+  }
+  bool ok = myIMU.begin(addr, Wire, -1, -1);
+  gyro_sh2_open = true;  // probe ผ่านแล้ว → begin เปิด SHTP แน่นอน (แม้ init จะไม่สำเร็จ)
+  if (ok) imu_i2c_addr = addr;
+  return ok;
+}
+
+// หา BNO08x ที่ 0x4A แล้ว 0x4B (ลองซ้ำได้ไม่เกิน timeout_ms) | คืน address ที่เจอ หรือ 0 ถ้าไม่เจอ
+uint8_t imuDetect(uint32_t timeout_ms = 3000) {
+  uint32_t t0 = millis();
+  do {
+    if (imuBeginAt(0x4A)) return 0x4A;
+    if (imuBeginAt(0x4B)) return 0x4B;
+    delay(100);
+  } while (millis() - t0 < timeout_ms);
+  return 0;
+}
+
+// ทำเครื่องหมายว่า IMU หลุด: ฟังก์ชันอ่านมุมทุกตัวจะคืน lastYaw ทันที (0 ms) ไม่แตะ I2C
+void imuMarkOffline(const char *why) {
+  if (!gyro_imu_ready) return;
+  gyro_imu_ready = false;
+  gyro_last_reconnect_ms = millis();
+  Serial.print("BNO08x offline: ");
+  Serial.println(why);
+}
+
+bool gyroEnableReports();
+// ลองต่อ BNO08x ใหม่ (เว้นช่วง gyro_reconnect_interval_ms) — ไม่เจอ = เสียเวลาแค่ probe สั้นๆ
+bool imuTryReconnect() {
+  if (gyro_imu_ready || !gyro_auto_reconnect) return gyro_imu_ready;
+  uint32_t now = millis();
+  if (now - gyro_last_reconnect_ms < gyro_reconnect_interval_ms) return false;
+  gyro_last_reconnect_ms = now;
+
+  Wire.clearTimeoutFlag();
+  uint8_t addr = imu_i2c_addr ? imu_i2c_addr : 0x4A;
+  bool ok = imuBeginAt(addr);
+  if (!ok && !imu_i2c_addr) ok = imuBeginAt(0x4B);
+  if (!ok) {
+    if (Wire.getTimeoutFlag()) i2cBusRecover();  // บัสค้าง → กู้บัส รอรอบหน้า
+    gyro_last_reconnect_ms = millis();
+    return false;
+  }
+  myIMU.wasReset();  // ล้างแฟล็ก reset จาก begin()
+  gyroEnableReports();
+  gyro_rebase_pending = true;  // ชิปนับมุมใหม่ → ต่อมุมจาก lastYaw เดิม
+  gyro_i2c_err_count = 0;
+  gyro_imu_ready = true;
+  gyro_last_reconnect_ms = millis();
+  Serial.print("BNO08x reconnected at 0x");
+  Serial.println(imu_i2c_addr, HEX);
+  return true;
+}
+
+// อ่าน event จาก BNO08x หนึ่งครั้ง "อย่างปลอดภัย" — ใช้แทน myIMU.getSensorEvent() ทุกที่
+// IMU ไม่พร้อม → คืน false ทันที (ไม่แตะ I2C) | I2C timeout ติดกัน 3 ครั้ง → ถือว่าหลุด
+// การต่อใหม่ (imuTryReconnect) เรียกเฉพาะใน sw() ตอนมอเตอร์หยุด เพราะ begin() ใช้เวลา ~0.5 วินาที
+bool imuPoll() {
+  if (!gyro_imu_ready) return false;
+  Wire.clearTimeoutFlag();
+  bool got = myIMU.getSensorEvent();
+  if (Wire.getTimeoutFlag()) {
+    Wire.clearTimeoutFlag();
+    if (++gyro_i2c_err_count >= 3) imuMarkOffline("I2C timeout x3 (bus stuck / wire loose)");
+    return false;
+  }
+  gyro_i2c_err_count = 0;
+  return got;
+}
 
 uint8_t gyroReportID() {
   return (gyro_report_mode == GYRO_MODE_RV) ? SENSOR_REPORTID_ROTATION_VECTOR
@@ -152,6 +341,7 @@ bool gyroEnableReports() {
 // หลังรีเซ็ต ชิปนับมุม 0 ใหม่จากทิศตอนนั้น → ค่ามุมแรกที่ได้จะถูกใช้ตั้ง yawOffset ใหม่
 // ให้มุมต่อจาก lastYaw เดิม (ไม่กระโดด) | คืน true ถ้าเพิ่งเจอ reset
 bool gyroCheckReset() {
+  if (!gyro_imu_ready) return false;
   if (!myIMU.wasReset()) return false;
   gyro_reset_count++;
   gyro_rebase_pending = true;
@@ -176,10 +366,11 @@ bool isYawEvent() {
 }
 
 bool waitForRotVec(uint32_t timeout_ms = 200) {
+  if (!gyro_imu_ready) return false;
   uint32_t t0 = millis();
-  while (millis() - t0 < timeout_ms) {
+  while (millis() - t0 < timeout_ms && gyro_imu_ready) {
     gyroCheckReset();
-    if (myIMU.getSensorEvent() && isYawEvent()) {
+    if (imuPoll() && isYawEvent()) {
       return true;
     }
     delay(1);
@@ -250,8 +441,9 @@ float updateYawFromEvent() {
 }
 
 float angleRead() {
+  if (!gyro_imu_ready) return lastYaw;  // ไม่มี IMU → คืนค่าเดิมทันที ไม่แตะ I2C
   gyroCheckReset();
-  if (!myIMU.getSensorEvent()) return lastYaw;
+  if (!imuPoll()) return lastYaw;
   if (!isYawEvent()) return lastYaw;
   return updateYawFromEvent();
 }
@@ -260,11 +452,12 @@ float angleRead() {
 // ระหว่างล้างยังอัปเดต lastYaw / yawgyro ไปด้วย (มุมสะสมไม่ขาดช่วง)
 // หยุดเมื่ออ่านว่างติดกัน 2 ครั้ง (ครั้งเดียวอาจเป็นแพ็กเก็ตคำสั่ง ไม่ใช่คิวหมด) หรือครบ max_ms
 float gyroFlushFIFO(uint32_t max_ms = 60) {
+  if (!gyro_imu_ready) return lastYaw;
   uint32_t t0 = millis();
   uint8_t emptyCount = 0;
-  while (millis() - t0 < max_ms) {
+  while (millis() - t0 < max_ms && gyro_imu_ready) {
     gyroCheckReset();
-    if (myIMU.getSensorEvent()) {
+    if (imuPoll()) {
       emptyCount = 0;
       if (isYawEvent()) updateYawFromEvent();
     } else if (++emptyCount >= 2) {
@@ -281,6 +474,7 @@ float angleReadLatest() {
 
 // ล้างคิวเก่าทิ้ง แล้วรอแพ็กเก็ตใหม่จริงๆ ก่อนคืนค่า (ใช้ตอนตั้งมุมเป้าหมาย)
 float angleReadFresh() {
+  if (!gyro_imu_ready) return lastYaw;
   gyroFlushFIFO();
   if (!waitForRotVec(50)) return lastYaw;
   return updateYawFromEvent();
@@ -294,6 +488,7 @@ float GYRO_STABLE_TOL = 0.5f;
 uint16_t GYRO_STABLE_SPACING_MS = 20;
 
 bool readStableRawYaw(float &out, uint32_t timeout_ms = 600) {
+  if (!gyro_imu_ready) return false;
   gyroFlushFIFO();
   float buf[GYRO_STABLE_N];
   int n = 0;
@@ -338,6 +533,12 @@ bool readStableRawYaw(float &out, uint32_t timeout_ms = 600) {
 
 // คืน true ถ้า reset สำเร็จ, false = gyro ไม่ส่งข้อมูล (บี๊บเตือน และ offset เป็นค่าเดิม)
 bool resetYaw() {
+  if (!gyro_imu_ready) {
+    // ไม่มี IMU: ตั้งมุมอ้างอิงเป็น 0 เฉยๆ ไม่แตะ I2C (กันค้าง)
+    lastYaw = 0.0f;
+    yawgyro = 0.0f;
+    return false;
+  }
   float yawNow;
   if (!readStableRawYaw(yawNow)) {
     Serial.println("ResetYaw timeout: no rotation vector");
@@ -353,7 +554,8 @@ bool resetYaw() {
 
 // เริ่มไจโรหลัง myIMU.begin() สำเร็จ: เปิด report → warm-up ให้ฟิลเตอร์นิ่ง → ตั้ง 0°
 // warm_ms: อ่านทิ้งต่อเนื่องอย่างน้อยกี่ ms (ถ้าชิปรีเซ็ตระหว่างนั้นจะนับใหม่ สูงสุด 2.5 วินาที)
-void gyroBegin(uint32_t warm_ms = 500) {
+// คืน true = ตั้ง 0° สำเร็จ (ใช้เปิดเสียง SoundGyroReady) | false = ไม่มีมุมส่งมา (resetYaw บี๊บเตือนแล้ว)
+bool gyroBegin(uint32_t warm_ms = 500) {
   gyro_imu_ready = true;
   myIMU.wasReset();  // ล้างแฟล็ก reset จาก begin() เอง แล้วเปิด report ด้านล่าง
   if (!gyroEnableReports()) {
@@ -363,11 +565,12 @@ void gyroBegin(uint32_t warm_ms = 500) {
   uint32_t tStart = millis();
   uint32_t t0 = tStart;
   while (millis() - t0 < warm_ms && millis() - tStart < 2500) {
+    if (!gyro_imu_ready) break;           // I2C timeout ระหว่าง warm-up → IMU หลุด
     if (gyroCheckReset()) t0 = millis();  // ชิปรีเซ็ตตัวเอง → เริ่ม warm-up ใหม่
-    if (myIMU.getSensorEvent() && isYawEvent()) updateYawFromEvent();
+    if (imuPoll() && isYawEvent()) updateYawFromEvent();
     delay(1);
   }
-  resetYaw();
+  return resetYaw();
 }
 
 float gyroZ() {
