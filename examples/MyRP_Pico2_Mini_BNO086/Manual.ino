@@ -323,6 +323,7 @@
 // ffbg(speed, 'p');                      bbbg(speed, 'p');                      // วิ่งจนเจอเส้น
 //
 // * ระยะทางคำนวณจาก ความเร็ว × เวลา × speed_scale (ไม่มี encoder) → ต้องคาลิเบรต set_speed_scale_*
+//   ชดเชยแรงดันแบตอัตโนมัติด้วย set_battery_comp() ดู [14]
 // ffdg(speed, 'p', dist);                bbdg(speed, 'p', dist);                // จนเซนเซอร์วัดระยะถึง dist (ค่า analogRead)
 // ffdgs(speed, 'p', dist);               bbdgs(speed, 'p', dist);               // แบบค่อย ๆ ชะลอ
 // ToCenterG();                           BackCenterG();                         // เข้ากลางด้วย gyro
@@ -497,6 +498,13 @@
 // sl(speed, ms);   sr(speed, ms);            // หมุนซ้าย / ขวา
 // tl(speed, ms);   tr(speed, ms);            // เลี้ยวซ้าย / ขวา (ล้อเดียว)
 // getBatteryVoltage();                       // อ่านแรงดันแบต (V)
+//
+// --- ชดเชยแรงดันแบต สำหรับวิ่งตามระยะ (ffcm, bbcm, ffcmg, bbcmg, ffcmgs, bbcmgs) ---
+// set_battery_comp(ref_volt [, gain, enable]);  // ค่าเริ่มต้น (11.8, 1.0, true)
+//     ref_volt = แรงดันแบตตอนจูน speed_scale_* | gain = ความแรงชดเชย (0.8-1.2) | enable = false ปิด
+//     ชดเชยเฉพาะส่วนที่ PWM (bat_control) ชดเชยไม่ได้ (scale ติดขอบ 0.95-1.05 / PWM ติดเพดาน) ไม่คูณซ้ำ
+// print_battery_comp([speed]);               // พิมพ์ แรงดัน / ref / pwm scale / ตัวคูณระยะ ที่ความเร็ว speed
+// batt_distance_factor(speed);               // ตัวคูณระยะตอนนี้ (>1 = แบตแรงกว่าตอนจูน หยุดเร็วขึ้น)
 
 
 /* ==========================================================================

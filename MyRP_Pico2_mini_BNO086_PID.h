@@ -538,7 +538,7 @@ static void ffcm_pid(int Speed, float distance, float Kp, float Kd) {
     if (distance > 0) {
       unsigned long current_time = millis();
       float delta_time = (current_time - last_time) / 1000.0f;
-      traveled_distance += (target_speed * speed_scale_ff) * delta_time;
+      traveled_distance += (target_speed * speed_scale_ff) * delta_time * batt_distance_factor(target_speed);
       last_time = current_time;
 
       if (traveled_distance >= distance) break;
@@ -570,7 +570,7 @@ static void bbcm_pid(int Speed, float distance, float Kp, float Kd) {
     if (distance > 0) {
       unsigned long current_time = millis();
       float delta_time = (current_time - last_time) / 1000.0f;
-      traveled_distance += (target_speed * speed_scale_bb) * delta_time;
+      traveled_distance += (target_speed * speed_scale_bb) * delta_time * batt_distance_factor(target_speed);
       last_time = current_time;
 
       if (traveled_distance >= distance) break;

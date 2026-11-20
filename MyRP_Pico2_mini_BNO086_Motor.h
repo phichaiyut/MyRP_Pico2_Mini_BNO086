@@ -56,17 +56,83 @@ void set_Freq(const String &type) {
   }
 }
 
-void bat_control() {
-  float voltage = getBatteryVoltage();
+const int MOTOR_PWM_LIMIT = 3850;  // เพดาน PWM (จาก 4095) ของ Motor() / MotorShot()
 
+// ตัวคูณ PWM ชดเชยแบตที่แรงดัน voltage (ใช้ทั้ง bat_control() และระบบชดเชยระยะทางด้านล่าง)
+float batt_pwm_scale(float voltage) {
+  float s = 1.0f;
   if (voltage > 0.5f && voltage >= VMIN && voltage <= VMAX) {
-    scale = powf(VNOM / voltage, 0.95f);
-  } else {
-    scale = 1.0f;
+    s = powf(VNOM / voltage, 0.95f);
   }
-
   // ป้องกัน scale เกินสำหรับ TB6612FNG (พิกัดกระแสต่ำกว่า VNH7070ASTR มาก จึงจำกัดช่วงให้แคบลง)
-  scale = constrain(scale, 0.95f, 1.05f);
+  return constrain(s, 0.95f, 1.05f);
+}
+
+void bat_control() {
+  scale = batt_pwm_scale(getBatteryVoltage());
+}
+
+// ---------- ชดเชยแรงดันแบต สำหรับคำสั่งวิ่งตามระยะ (ffcm / bbcm / ffcmg / bbcmg / ffcmgs / bbcmgs) ----------
+// ระยะคำนวณจาก ความเร็ว × เวลา × speed_scale → ถ้าแบตต่างจากตอนจูน ระยะจริงจะเพี้ยน
+// bat_control() ชดเชย PWM อยู่แล้ว แต่ไม่ครบ เพราะ
+//   (1) scale ถูกจำกัด 0.95-1.05 → แบตเต็ม (> ~12.2V) ชดเชยไม่พอ หุ่นวิ่งเร็วกว่าตอนจูน
+//   (2) PWM ถูกจำกัดที่ MOTOR_PWM_LIMIT → ความเร็วสูง (~90+) ชดเชยไม่ได้เลยเมื่อแบตอ่อน
+//   (3) VNOM ไม่ใช่แรงดันตอนจูน speed_scale
+// ระบบนี้จึงชดเชย "เฉพาะส่วนที่ PWM ชดเชยไม่ได้" ที่ตัวนับระยะ (ไม่คูณซ้ำ 2 เด้ง):
+//   แรงดันเฉลี่ยที่ถึงมอเตอร์จริง  Veff(V) = V × PWM ที่จ่ายจริง (รวม scale + เพดาน PWM)
+//   factor = (Veff(แบตตอนนี้) / Veff(batt_ref_voltage)) ^ batt_comp_gain
+//   แบตแรงกว่าตอนจูน → factor > 1 → นับระยะเร็วขึ้น หยุดเร็วขึ้น | แบตอ่อน → factor < 1
+float batt_ref_voltage = 11.8f;  // แรงดันแบต (V) ตอนจูน speed_scale_*
+float batt_comp_gain = 1.0f;     // ความแรงการชดเชย (ปกติ 0.8-1.2) | 0 = ไม่ชดเชย
+bool enable_batt_comp = true;    // เปิด/ปิดระบบชดเชยระยะทาง
+
+const float BATT_COMP_V_LOW = 9.0f;      // นอกช่วงนี้ถือว่าค่าแบตผิดปกติ → ไม่ชดเชย
+const float BATT_COMP_V_HIGH = 13.5f;
+const float BATT_COMP_FACTOR_MIN = 0.85f;  // จำกัดตัวคูณ กันค่าแบตเพี้ยนทำระยะเพี้ยนมาก
+const float BATT_COMP_FACTOR_MAX = 1.15f;
+
+// ref_volt = แรงดันตอนจูน speed_scale (ดูจาก print_battery_comp() หรือ getBatteryVoltage() ตอนจูน)
+void set_battery_comp(float ref_volt, float gain = 1.0f, bool enable = true) {
+  if (ref_volt >= BATT_COMP_V_LOW && ref_volt <= BATT_COMP_V_HIGH) batt_ref_voltage = ref_volt;
+  else Serial.println("set_battery_comp: ref_volt out of range (9.0-13.5 V), keep old value");
+  batt_comp_gain = constrain(gain, 0.0f, 2.0f);
+  enable_batt_comp = enable;
+}
+
+// แรงดันเฉลี่ยที่ถึงมอเตอร์ เมื่อสั่งความเร็ว speed ที่แบต voltage (สัดส่วนเดียวกับ Motor())
+static float batt_effective_voltage(float voltage, float speed) {
+  float pwm = 4095.0f * speed / 100.0f;
+  float applied = min(pwm * batt_pwm_scale(voltage), (float)MOTOR_PWM_LIMIT);
+  return voltage * applied / pwm;
+}
+
+// ตัวคูณระยะทาง (คูณเข้ากับ speed × speed_scale × dt) | speed = ความเร็วที่สั่งล้อ (0-100)
+float batt_distance_factor(float speed) {
+  if (!enable_batt_comp || batt_comp_gain <= 0.0f) return 1.0f;
+  speed = fabsf(speed);
+  if (!(speed > 0.5f)) return 1.0f;
+  if (speed > 100.0f) speed = 100.0f;
+  float v = getBatteryVoltage();
+  if (!(v >= BATT_COMP_V_LOW && v <= BATT_COMP_V_HIGH)) return 1.0f;  // ไม่มีแบต / อ่านค่าผิด
+
+  float ratio = batt_effective_voltage(v, speed) / batt_effective_voltage(batt_ref_voltage, speed);
+  float f = (batt_comp_gain == 1.0f) ? ratio : powf(ratio, batt_comp_gain);
+  return constrain(f, BATT_COMP_FACTOR_MIN, BATT_COMP_FACTOR_MAX);
+}
+
+// พิมพ์ค่าแบต / ตัวคูณ PWM / ตัวคูณระยะ ที่ความเร็ว speed (ไว้ตรวจสอบและหาค่า ref_volt ตอนจูน)
+void print_battery_comp(int speed = 50) {
+  Serial.print("Batt ");
+  Serial.print(getBatteryVoltage(), 2);
+  Serial.print(" V | ref ");
+  Serial.print(batt_ref_voltage, 2);
+  Serial.print(" V | pwm scale ");
+  Serial.print(batt_pwm_scale(getBatteryVoltage()), 3);
+  Serial.print(" | dist factor @");
+  Serial.print(speed);
+  Serial.print(" = ");
+  Serial.print(batt_distance_factor(speed), 3);
+  Serial.println(enable_batt_comp ? "" : " (OFF)");
 }
 
 // ======================================================================
@@ -85,8 +151,8 @@ void Motor(int left, int right) {
   int pwmL = map(abs(left), 0, 100, 0, 4095);
   int pwmR = map(abs(right), 0, 100, 0, 4095);
 
-  pwmL = constrain((int)(pwmL * scale), 0, 3850);  // Safety limit
-  pwmR = constrain((int)(pwmR * scale), 0, 3850);
+  pwmL = constrain((int)(pwmL * scale), 0, MOTOR_PWM_LIMIT);  // Safety limit
+  pwmR = constrain((int)(pwmR * scale), 0, MOTOR_PWM_LIMIT);
 
   // LEFT MOTOR
   if (left > 0) {
@@ -147,7 +213,7 @@ void MotorShot(int t = 3, int power = 90) {
   updateBattery();
   bat_control();
   int pwm = map(constrain(power, 0, 100), 0, 100, 0, 4095);
-  pwm = constrain((int)(pwm * scale), 0, 3850);  // Safety limit เดียวกับ Motor()
+  pwm = constrain((int)(pwm * scale), 0, MOTOR_PWM_LIMIT);  // Safety limit เดียวกับ Motor()
 
   digitalWrite(AIN1, HIGH);
   digitalWrite(AIN2, HIGH);
